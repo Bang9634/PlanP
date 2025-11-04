@@ -1,0 +1,7 @@
+# macOS 폴더 정보
+.DS_Store
+
+# 프론트엔드 ignore 목록
+react-frontend/.DS_Store
+react-frontend/dist/
+react-frontend/node_modules/
