@@ -6,6 +6,10 @@ import java.util.UUID;
 
 import com.drhong.entity.User;
 
+/**
+ * 
+ * @auther wnwoghd
+ */
 public class UserDAO {
     private final List<User> userList;  // 사용자 정보를 저장할 리스트
     

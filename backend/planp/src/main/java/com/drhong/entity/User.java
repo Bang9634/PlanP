@@ -1,5 +1,9 @@
 package com.drhong.entity;
 
+/**
+ * 
+ * @auther whwoghd
+ */
 public class User {
     private String id;
     private String password;

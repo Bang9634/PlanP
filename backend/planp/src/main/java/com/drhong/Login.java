@@ -9,6 +9,8 @@ import java.sql.ResultSet;           // SQL 쿼리 실행 결과를 담는 객�
 /**
  * 로그인 기능을 처리하는 클래스
  * 사용자가 입력한 아이디와 비밀번호를 데이터베이스와 비교하여 로그인을 처리합니다.
+ * 
+ * @auther whwoghd
  */
 public class Login {
     // 데이터베이스 연결에 필요한 정보들
