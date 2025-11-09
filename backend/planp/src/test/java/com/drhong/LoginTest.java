@@ -1,6 +1,6 @@
-package login;
+package com.drhong;
 
-public class Main {
+public class LoginTest {
     public static void main(String[] args) {
         Login login = new Login();
         

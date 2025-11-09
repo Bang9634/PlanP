@@ -1,4 +1,4 @@
-package login;
+package com.drhong;
 
 // MySQL 데이터베이스 작업에 필요한 클래스들을 가져옵니다.
 import java.sql.Connection;           // 데이터베이스 연결을 담당

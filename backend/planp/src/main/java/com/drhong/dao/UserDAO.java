@@ -1,8 +1,10 @@
-package login;
+package com.drhong.dao;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+
+import com.drhong.entity.User;
 
 public class UserDAO {
     private final List<User> userList;  // 사용자 정보를 저장할 리스트

@@ -1,4 +1,4 @@
-package login;
+package com.drhong.entity;
 
 public class User {
     private String id;
