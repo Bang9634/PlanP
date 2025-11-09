@@ -2,7 +2,7 @@
 .DS_Store
 
 # 백엔드 ignore 목록
-backend/target/
+backend/planp/target/
 
 # 프론트엔드 ignore 목록
 frontend/.DS_Store
