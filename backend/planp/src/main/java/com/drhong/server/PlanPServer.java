@@ -4,8 +4,12 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.concurrent.Executors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.drhong.controller.UserController;
 import com.drhong.service.UserService;
+import com.sun.net.httpserver.HttpContext;
 import com.sun.net.httpserver.HttpServer;
 
 /**
@@ -13,6 +17,7 @@ import com.sun.net.httpserver.HttpServer;
  */
 public class PlanPServer {
     
+    private static final Logger logger = LoggerFactory.getLogger(PlanPServer.class);
     private final HttpServer server;
     private final String host;
     private final int port;
@@ -30,32 +35,45 @@ public class PlanPServer {
         // 라우트 설정
         setupRoutes(userController);
         
-        // 스레드 풀 설정 (동시 요청 처리)
+        // 스레드 풀 설정
         server.setExecutor(Executors.newFixedThreadPool(10));
+        
+        logger.info("서버 초기화 완료: {}:{}", host, port);
     }
     
     /**
      * API 라우트 설정
      */
     private void setupRoutes(UserController userController) {
+        logger.info("라우트 설정 시작...");
+        
+        // CORS 필터 생성
+        CorsFilter corsFilter = new CorsFilter();
         
         // 헬스 체크 API
-        server.createContext("/health", new HealthCheckHandler());
-        // 사용자 관련 API
-        server.createContext("/api/users/signup", userController::handleSignup);
-        server.createContext("/api/users/login", userController::handleLogin);
-        server.createContext("/api/users/check-id", userController::handleCheckUserId);
-        server.createContext("/api/users/check-email", userController::handleCheckEmail);
+        HttpContext healthContext = server.createContext("/health", new HealthCheckHandler());
+        healthContext.getFilters().add(corsFilter);
         
-        // CORS 설정을 위한 기본 핸들러
-        server.createContext("/", new CorsHandler());
+        // 사용자 관련 API (CORS 필터 적용)
+        HttpContext signupContext = server.createContext("/api/users/signup", userController::handleSignup);
+        signupContext.getFilters().add(corsFilter);
         
-        System.out.println("라우트 설정 완료:");
-        System.out.println("  POST /api/users/signup - 회원가입");
-        System.out.println("  POST /api/users/login - 로그인");
-        System.out.println("  GET  /api/users/check-id?userId=xxx - ID 중복 확인");
-        System.out.println("  GET  /api/users/check-email?email=xxx - 이메일 중복 확인");
-        System.out.println("  GET  /health - 서버 상태 확인");
+        HttpContext loginContext = server.createContext("/api/users/login", userController::handleLogin);
+        loginContext.getFilters().add(corsFilter);
+        
+        HttpContext checkIdContext = server.createContext("/api/users/check-id", userController::handleCheckUserId);
+        checkIdContext.getFilters().add(corsFilter);
+        
+        HttpContext checkEmailContext = server.createContext("/api/users/check-email", userController::handleCheckEmail);
+        checkEmailContext.getFilters().add(corsFilter);
+      
+        logger.info("라우트 설정 완료:");
+        logger.info("  GET  /health - 서버 상태 확인 (CORS 필터 적용)");
+        logger.info("  POST /api/users/signup - 회원가입 (CORS 필터 적용)");
+        logger.info("  POST /api/users/login - 로그인 (CORS 필터 적용)");
+        logger.info("  GET  /api/users/check-id - ID 중복 확인 (CORS 필터 적용)");
+        logger.info("  GET  /api/users/check-email - 이메일 중복 확인 (CORS 필터 적용)");
+        logger.info("  *    / - 기본 CORS 처리");
     }
     
     /**
@@ -63,18 +81,16 @@ public class PlanPServer {
      */
     public void start() {
         server.start();
-        System.out.printf("HTTP 서버가 %s:%d에서 실행 중입니다.%n", host, port);
-        
-        // Graceful shutdown을 위한 shutdown hook 추가
-        Runtime.getRuntime().addShutdownHook(new Thread(this::stop));
+        logger.info("HTTP 서버가 시작되었습니다: http://{}:{}", host, port);
+        logger.info("CORS 설정: localhost:3000, localhost:8080 허용");
     }
     
     /**
      * 서버 중지
      */
     public void stop() {
-        System.out.println("\n서버를 종료합니다...");
-        server.stop(3); // 3초 후 강제 종료
-        System.out.println("서버가 종료되었습니다.");
+        logger.info("서버를 종료합니다...");
+        server.stop(3);
+        logger.info("서버가 종료되었습니다.");
     }
 }
