@@ -77,8 +77,22 @@
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-sunfire-plugin</artifactId>
+                <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.1.2</version>
+            </plugin>
+
+            <!-- JAR 실행을 위한 메인 클래스 설정 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.3.0</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <mainClass>com.drhong.Main</mainClass>
+                        </manifest>
+                    </archive>
+                </configuration>
             </plugin>
             
         </plugins>
