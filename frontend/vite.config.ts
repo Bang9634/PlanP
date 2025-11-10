@@ -11,7 +11,8 @@ export default defineConfig({
     },
   },
   server: {
-    port: 3000,
+    port: 3000, 
+    // 개발 환경에서 프론트엔드는 3000번 포트 사용. 배포시에는 80번포트로 변경 요망.
     open: true,
   },
   build: {
