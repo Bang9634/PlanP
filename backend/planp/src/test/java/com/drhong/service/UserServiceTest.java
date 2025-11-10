@@ -1,10 +1,14 @@
 package com.drhong.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import com.drhong.dao.UserDAO;
 import com.drhong.dto.SignupRequest;
@@ -49,7 +53,7 @@ class UserServiceTest {
         void successfulSignup() {
             // Given
             SignupRequest request = new SignupRequest(
-                "testuser", "password123", "테스트사용자", "test@example.com"
+                "testuser", "StrongPassword123!", "테스트사용자", "test@example.com"
             );
 
             // When
@@ -67,7 +71,7 @@ class UserServiceTest {
             assertThat(savedUser.getEmail()).isEqualTo("test@example.com");
             
             // 비밀번호가 암호화되었는지 확인
-            assertThat(PasswordUtil.verify("password123", savedUser.getPassword())).isTrue();
+            assertThat(PasswordUtil.verify("StrongPassword123!", savedUser.getPassword())).isTrue();
         }
 
         @Test
@@ -75,13 +79,13 @@ class UserServiceTest {
         void duplicateUserId() {
             // Given - 먼저 사용자 등록
             SignupRequest firstRequest = new SignupRequest(
-                "duplicate", "password123", "첫번째사용자", "first@example.com"
+                "duplicate", "StrongPassword123!", "첫번째사용자", "first@example.com"
             );
             userService.signup(firstRequest);
 
             // When - 같은 ID로 재등록 시도
             SignupRequest secondRequest = new SignupRequest(
-                "duplicate", "password456", "두번째사용자", "second@example.com"
+                "duplicate", "AnotherPassword456!", "두번째사용자", "second@example.com"
             );
             SignupResponse response = userService.signup(secondRequest);
 
@@ -95,13 +99,13 @@ class UserServiceTest {
         void duplicateEmail() {
             // Given - 먼저 사용자 등록
             SignupRequest firstRequest = new SignupRequest(
-                "user1", "password123", "첫번째사용자", "duplicate@example.com"
+                "user1", "StrongPassword123!", "첫번째사용자", "duplicate@example.com"
             );
             userService.signup(firstRequest);
 
             // When - 같은 이메일로 재등록 시도
             SignupRequest secondRequest = new SignupRequest(
-                "user2", "password456", "두번째사용자", "duplicate@example.com"
+                "user2", "AnotherPassword456!", "두번째사용자", "duplicate@example.com"
             );
             SignupResponse response = userService.signup(secondRequest);
 
@@ -134,7 +138,178 @@ class UserServiceTest {
 
             // Then
             assertThat(response.isSuccess()).isFalse();
-            assertThat(response.getMessage()).isEqualTo("요청 데이터가 없습니다.");
+            assertThat(response.getMessage()).isEqualTo("잘못된 요청입니다.");
+        }
+
+        @Test
+        @DisplayName("약한 비밀번호 - 실패")
+        void weakPassword() {
+            // Given - 약한 비밀번호
+            SignupRequest request = new SignupRequest(
+                "testuser", "123123", "테스트사용자", "test@example.com"
+            );
+
+            // When
+            SignupResponse response = userService.signup(request);
+
+            // Then
+            assertThat(response.isSuccess()).isFalse();
+            assertThat(response.getMessage()).contains("비밀번호 강도가 너무 약합니다");
+        }
+
+        @ParameterizedTest
+        @ValueSource(strings = {"a", "ab", "toolongusernamethatexceedsmaximumlength"})
+        @DisplayName("잘못된 길이의 사용자 ID - 실패")
+        void invalidUserIdLength(String userId) {
+            // Given
+            SignupRequest request = new SignupRequest(
+                userId, "StrongPassword123!", "테스트사용자", "test@example.com"
+            );
+
+            // When
+            SignupResponse response = userService.signup(request);
+
+            // Then
+            assertThat(response.isSuccess()).isFalse();
+        }
+
+        @ParameterizedTest
+        @ValueSource(strings = {"invalid-email", "@example.com", "test@"})
+        @DisplayName("잘못된 이메일 형식 - 실패")
+        void invalidEmailFormat(String email) {
+            // Given
+            SignupRequest request = new SignupRequest(
+                "testuser", "StrongPassword123!", "테스트사용자", email
+            );
+
+            // When
+            SignupResponse response = userService.signup(request);
+
+            // Then
+            assertThat(response.isSuccess()).isFalse();
+        }
+    }
+
+    @Nested
+    @DisplayName("로그인 테스트")
+    class LoginTests {
+
+        @Test
+        @DisplayName("정상적인 로그인 - 성공")
+        void successfulLogin() {
+            // Given - 사용자 등록
+            String password = "StrongPassword123!";
+            SignupRequest signupRequest = new SignupRequest(
+                "loginuser", password, "로그인사용자", "login@example.com"
+            );
+            userService.signup(signupRequest);
+
+            // When
+            boolean loginResult = userService.login("loginuser", password);
+
+            // Then
+            assertThat(loginResult).isTrue();
+        }
+
+        @Test
+        @DisplayName("잘못된 비밀번호 - 실패")
+        void wrongPassword() {
+            // Given - 사용자 등록
+            SignupRequest signupRequest = new SignupRequest(
+                "loginuser", "StrongPassword123!", "로그인사용자", "login@example.com"
+            );
+            userService.signup(signupRequest);
+
+            // When
+            boolean loginResult = userService.login("loginuser", "WrongPassword!");
+
+            // Then
+            assertThat(loginResult).isFalse();
+        }
+
+        @Test
+        @DisplayName("존재하지 않는 사용자 - 실패")
+        void nonExistentUser() {
+            // When
+            boolean loginResult = userService.login("nonexistent", "AnyPassword123!");
+
+            // Then
+            assertThat(loginResult).isFalse();
+        }
+
+        @ParameterizedTest
+        @NullAndEmptySource
+        @DisplayName("null 또는 빈 사용자 ID - 실패")
+        void nullOrEmptyUserId(String userId) {
+            // When
+            boolean loginResult = userService.login(userId, "StrongPassword123!");
+
+            // Then
+            assertThat(loginResult).isFalse();
+        }
+
+        @ParameterizedTest
+        @NullAndEmptySource
+        @DisplayName("null 또는 빈 비밀번호 - 실패")
+        void nullOrEmptyPassword(String password) {
+            // When
+            boolean loginResult = userService.login("testuser", password);
+
+            // Then
+            assertThat(loginResult).isFalse();
+        }
+    }
+
+    @Nested
+    @DisplayName("비밀번호 변경 테스트")
+    class PasswordChangeTests {
+
+        @Test
+        @DisplayName("정상적인 비밀번호 변경 - 성공")
+        void successfulPasswordChange() {
+            // Given - 사용자 등록
+            String oldPassword = "OldPassword123!";
+            String newPassword = "NewPassword456!";
+            SignupRequest signupRequest = new SignupRequest(
+                "changeuser", oldPassword, "변경사용자", "change@example.com"
+            );
+            userService.signup(signupRequest);
+
+            // When
+            boolean changeResult = userService.changePassword("changeuser", oldPassword, newPassword);
+
+            // Then
+            assertThat(changeResult).isTrue();
+            
+            // 새 비밀번호로 로그인 확인
+            assertThat(userService.login("changeuser", newPassword)).isTrue();
+            assertThat(userService.login("changeuser", oldPassword)).isFalse();
+        }
+
+        @Test
+        @DisplayName("잘못된 기존 비밀번호 - 실패")
+        void wrongOldPassword() {
+            // Given - 사용자 등록
+            SignupRequest signupRequest = new SignupRequest(
+                "changeuser", "CorrectPassword123!", "변경사용자", "change@example.com"
+            );
+            userService.signup(signupRequest);
+
+            // When
+            boolean changeResult = userService.changePassword("changeuser", "WrongOldPassword!", "NewPassword456!");
+
+            // Then
+            assertThat(changeResult).isFalse();
+        }
+
+        @Test
+        @DisplayName("존재하지 않는 사용자 - 실패")
+        void nonExistentUserPasswordChange() {
+            // When
+            boolean changeResult = userService.changePassword("nonexistent", "OldPass123!", "NewPass456!");
+
+            // Then
+            assertThat(changeResult).isFalse();
         }
     }
 
@@ -153,7 +328,7 @@ class UserServiceTest {
         void unavailableUserId() {
             // Given - 사용자 등록
             SignupRequest request = new SignupRequest(
-                "existinguser", "password123", "기존사용자", "existing@example.com"
+                "existinguser", "StrongPassword123!", "기존사용자", "existing@example.com"
             );
             userService.signup(request);
 
@@ -172,12 +347,28 @@ class UserServiceTest {
         void unavailableEmail() {
             // Given - 사용자 등록
             SignupRequest request = new SignupRequest(
-                "user", "password123", "사용자", "existing@example.com"
+                "user", "StrongPassword123!", "사용자", "existing@example.com"
             );
             userService.signup(request);
 
             // When & Then
             assertThat(userService.isEmailAvailable("existing@example.com")).isFalse();
+        }
+
+        @ParameterizedTest
+        @NullAndEmptySource
+        @ValueSource(strings = {" ", "   "})
+        @DisplayName("유효하지 않은 사용자 ID 중복 확인")
+        void invalidUserIdCheck(String userId) {
+            assertThat(userService.isUserIdAvailable(userId)).isFalse();
+        }
+
+        @ParameterizedTest
+        @NullAndEmptySource
+        @ValueSource(strings = {" ", "   "})
+        @DisplayName("유효하지 않은 이메일 중복 확인")
+        void invalidEmailCheck(String email) {
+            assertThat(userService.isEmailAvailable(email)).isFalse();
         }
     }
 
@@ -190,7 +381,7 @@ class UserServiceTest {
         void getUserById() {
             // Given - 사용자 등록
             SignupRequest request = new SignupRequest(
-                "findme", "password123", "찾을사용자", "find@example.com"
+                "findme", "StrongPassword123!", "찾을사용자", "find@example.com"
             );
             userService.signup(request);
 
@@ -215,7 +406,7 @@ class UserServiceTest {
         void getUserByEmail() {
             // Given - 사용자 등록
             SignupRequest request = new SignupRequest(
-                "emailuser", "password123", "이메일사용자", "email@example.com"
+                "emailuser", "StrongPassword123!", "이메일사용자", "email@example.com"
             );
             userService.signup(request);
 
@@ -226,6 +417,44 @@ class UserServiceTest {
             assertThat(user).isNotNull();
             assertThat(user.getEmail()).isEqualTo("email@example.com");
             assertThat(user.getName()).isEqualTo("이메일사용자");
+        }
+
+        @ParameterizedTest
+        @NullAndEmptySource
+        @ValueSource(strings = {" ", "   "})
+        @DisplayName("유효하지 않은 ID로 조회")
+        void getUserByInvalidId(String userId) {
+            User user = userService.getUserById(userId);
+            assertThat(user).isNull();
+        }
+
+        @ParameterizedTest
+        @NullAndEmptySource
+        @ValueSource(strings = {" ", "   "})
+        @DisplayName("유효하지 않은 이메일로 조회")
+        void getUserByInvalidEmail(String email) {
+            User user = userService.getUserByEmail(email);
+            assertThat(user).isNull();
+        }
+    }
+
+    @Nested
+    @DisplayName("생성자 테스트")
+    class ConstructorTests {
+
+        @Test
+        @DisplayName("기본 생성자 - 성공")
+        void defaultConstructor() {
+            UserService service = new UserService();
+            assertThat(service).isNotNull();
+        }
+
+        @Test
+        @DisplayName("null UserDAO 주입 - 실패")
+        void nullUserDAOInjection() {
+            assertThatThrownBy(() -> new UserService(null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessage("UserDAO는 null일 수 없습니다");
         }
     }
 
@@ -238,9 +467,9 @@ class UserServiceTest {
         void multipleSignups() {
             // Given - 여러 회원가입 요청
             SignupRequest[] requests = {
-                new SignupRequest("user1", "pass123123123", "사용자1", "user1@example.com"),
-                new SignupRequest("user2", "pass2123123123", "사용자2", "user2@example.com"),
-                new SignupRequest("user3", "pass3123123123", "사용자3", "user3@example.com")
+                new SignupRequest("user1", "StrongPassword123!", "사용자1", "user1@example.com"),
+                new SignupRequest("user2", "StrongPassword456!", "사용자2", "user2@example.com"),
+                new SignupRequest("user3", "StrongPassword789!", "사용자3", "user3@example.com")
             };
 
             // When & Then - 모든 회원가입이 성공해야 함
@@ -254,11 +483,38 @@ class UserServiceTest {
         }
 
         @Test
+        @DisplayName("대량 사용자 처리 성능 테스트")
+        void bulkUserProcessingPerformance() {
+            // Given
+            int userCount = 50;
+            long startTime = System.currentTimeMillis();
+
+            // When
+            for (int i = 0; i < userCount; i++) {
+                SignupRequest request = new SignupRequest(
+                    "bulkuser" + i, 
+                    "StrongPassword123!", 
+                    "대량사용자" + i, 
+                    "bulkuser" + i + "@example.com"
+                );
+                userService.signup(request);
+            }
+
+            long endTime = System.currentTimeMillis();
+            long duration = endTime - startTime;
+
+            // Then
+            assertThat(userService.getUserCount()).isEqualTo(userCount);
+            assertThat(duration).isLessThan(40000); // 40초 이내 완료
+            System.out.println("Bulk signup of " + userCount + " users took " + duration + "ms");
+        }
+
+        @Test
         @DisplayName("회원가입 후 중복 확인")
         void signupThenDuplicateCheck() {
             // Given - 회원가입
             SignupRequest request = new SignupRequest(
-                "testuser", "password123123", "테스트", "test@example.com"
+                "testuser", "StrongPassword123!", "테스트", "test@example.com"
             );
             userService.signup(request);
 
@@ -270,51 +526,88 @@ class UserServiceTest {
             assertThat(userService.isUserIdAvailable("anotheruser")).isTrue();
             assertThat(userService.isEmailAvailable("another@example.com")).isTrue();
         }
+    }
+
+    @Nested
+    @DisplayName("데이터 무결성 테스트")
+    class DataIntegrityTests {
 
         @Test
-        @DisplayName("회원가입 후 중복 확인 - 상세 검증")
-        void signupThenDuplicateCheckDetailed() {
-            // Given - 회원가입
+        @DisplayName("저장된 비밀번호는 평문이 아님")
+        void passwordIsHashed() {
+            // Given
+            String plainPassword = "MySecretPassword123!";
             SignupRequest request = new SignupRequest(
-                "testuser", "password123123", "테스트", "test@example.com"
+                "secureuser", plainPassword, "보안사용자", "secure@example.com"
             );
 
-            // When - 회원가입 실행
+            // When
+            userService.signup(request);
+            User savedUser = userService.getUserById("secureuser");
+
+            // Then
+            assertThat(savedUser.getPassword()).isNotEqualTo(plainPassword);
+            assertThat(savedUser.getPassword()).startsWith("$2a$"); // bcrypt 해시 형식
+        }
+
+        @Test
+        @DisplayName("사용자 정보 수정 후 무결성 확인")
+        void userDataIntegrityAfterModification() {
+            // Given - 사용자 등록
+            SignupRequest request = new SignupRequest(
+                "modifyuser", "OriginalPassword123!", "원본사용자", "original@example.com"
+            );
+            userService.signup(request);
+
+            // When - 비밀번호 변경
+            userService.changePassword("modifyuser", "OriginalPassword123!", "NewPassword456!");
+            
+            // Then - 데이터 무결성 확인
+            User user = userService.getUserById("modifyuser");
+            assertThat(user.getUserId()).isEqualTo("modifyuser");
+            assertThat(user.getName()).isEqualTo("원본사용자");
+            assertThat(user.getEmail()).isEqualTo("original@example.com");
+            
+            // 새 비밀번호로 로그인 가능
+            assertThat(userService.login("modifyuser", "NewPassword456!")).isTrue();
+            assertThat(userService.login("modifyuser", "OriginalPassword123!")).isFalse();
+        }
+    }
+
+    @Nested
+    @DisplayName("에러 처리 테스트")
+    class ErrorHandlingTests {
+
+        @Test
+        @DisplayName("예외 상황에서도 안전한 응답 반환")
+        void safeResponseOnException() {
+            // Given - 극단적인 케이스
+            SignupRequest request = new SignupRequest(
+                "extremecase", "password", null, "test@example.com"
+            );
+
+            // When
             SignupResponse response = userService.signup(request);
 
-            // Then - 단계별 검증
-            System.out.println("1. 회원가입 응답: " + response.toJson());
-            assertThat(response.isSuccess())
-                .withFailMessage("회원가입이 실패했습니다: " + response.getMessage())
-                .isTrue();
+            // Then - 예외가 발생하지 않고 실패 응답 반환
+            assertThat(response).isNotNull();
+            assertThat(response.isSuccess()).isFalse();
+        }
 
-            System.out.println("2. 저장된 사용자 확인");
-            User savedUser = userService.getUserById("testuser");
-            assertThat(savedUser)
-                .withFailMessage("사용자가 저장되지 않았습니다")
-                .isNotNull();
+        @Test
+        @DisplayName("대용량 데이터 처리 안정성")
+        void largeDataHandling() {
+            // Given - 매우 긴 문자열
+            String longString = "a".repeat(1000);
+            SignupRequest request = new SignupRequest(
+                "shortid", "StrongPassword123!", longString, "test@example.com"
+            );
 
-            System.out.println("3. 사용자 정보: " + savedUser);
+            // When
+            SignupResponse response = userService.signup(request);
 
-            System.out.println("4. 중복 확인 테스트");
-            
-            // ID 중복 확인
-            boolean userIdExists = userDAO.existsByUserId("testuser");
-            boolean userIdAvailable = userService.isUserIdAvailable("testuser");
-            System.out.println("  - userDAO.existsByUserId('testuser'): " + userIdExists);
-            System.out.println("  - userService.isUserIdAvailable('testuser'): " + userIdAvailable);
-            
-            // 이메일 중복 확인  
-            boolean emailExists = userDAO.existsByEmail("test@example.com");
-            boolean emailAvailable = userService.isEmailAvailable("test@example.com");
-            System.out.println("  - userDAO.existsByEmail('test@example.com'): " + emailExists);
-            System.out.println("  - userService.isEmailAvailable('test@example.com'): " + emailAvailable);
-
-            // 최종 검증
-            assertThat(userIdExists).isTrue();
-            assertThat(userIdAvailable).isFalse();
-            assertThat(emailExists).isTrue(); 
-            assertThat(emailAvailable).isFalse();
+            // Then - 적절히 처리됨 (성공하거나 유효성 검증 실패)
+            assertThat(response).isNotNull();
         }
     }
 }
