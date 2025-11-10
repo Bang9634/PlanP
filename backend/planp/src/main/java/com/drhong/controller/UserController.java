@@ -150,8 +150,7 @@ public class UserController {
         } catch (JsonSyntaxException e) {
             logger.error("JSON 파싱 오류: clientIP={}", clientIP, e);
             sendErrorResponse(exchange, 400, "Invalid JSON format: " + e.getMessage());
-        } catch (Exception e) {
-            // 예상치 못한 서버 오류 처리
+        } catch (IOException | RuntimeException e) {
             logger.error("회원가입 처리 오류: clientIP={}", clientIP, e);
             sendErrorResponse(exchange, 500, "Internal server error");
         }
@@ -168,6 +167,8 @@ public class UserController {
      * @throws IOException 네트워크 I/O 처리 중 오류가 발생한 경우
      */
     public void handleLogin(HttpExchange exchange) throws IOException {
+        String clientIP = exchange.getRemoteAddress().getAddress().getHostAddress();
+
         // HTTP POST 메서드 방식만 허용
         if (!"POST".equals(exchange.getRequestMethod())) {
             sendErrorResponse(exchange, 405, "Method Not Allowed");
@@ -205,9 +206,12 @@ public class UserController {
             String jsonResponse = gson.toJson(response);
             sendJsonResponse(exchange, loginSuccess ? 200 : 401, jsonResponse);
             
-        } catch (Exception e) {
-            System.err.println("로그인 처리 중 오류: " + e.getMessage());
-            sendErrorResponse(exchange, 500, "서버 내부 오류가 발생했습니다.");
+        } catch (JsonSyntaxException e) {
+            logger.error("JSON 파싱 오류: clientIP={}", clientIP, e);
+            sendErrorResponse(exchange, 400, "Invalid JSON format: " + e.getMessage());
+        } catch (IOException | RuntimeException e) {
+            logger.error("로그인 처리 오류: clientIP={}", clientIP, e);
+            sendErrorResponse(exchange, 500, "Internal server error");
         }
     }
     
@@ -273,8 +277,11 @@ public class UserController {
             String jsonResponse = gson.toJson(response);
             sendJsonResponse(exchange, 200, jsonResponse);
             
-        } catch (Exception e) {
-            logger.error("ID 중복 확인 중 오류: clientIP={}", clientIP, e);
+        } catch (JsonSyntaxException e) {
+            logger.error("JSON 파싱 오류: clientIP={}", clientIP, e);
+            sendErrorResponse(exchange, 400, "Invalid JSON format: " + e.getMessage());
+        } catch (IOException | RuntimeException e) {
+            logger.error("아이디 중복 처리 오류: clientIP={}", clientIP, e);
             sendErrorResponse(exchange, 500, "Internal server error");
         }
     }
@@ -335,8 +342,11 @@ public class UserController {
             String jsonResponse = gson.toJson(response);
             sendJsonResponse(exchange, 200, jsonResponse);
             
-        } catch (Exception e) {
-            logger.error("이메일 중복 확인 중 오류: clientIP={}", clientIP, e);
+        } catch (JsonSyntaxException e) {
+            logger.error("JSON 파싱 오류: clientIP={}", clientIP, e);
+            sendErrorResponse(exchange, 400, "Invalid JSON format: " + e.getMessage());
+        } catch (IOException | RuntimeException e) {
+            logger.error("이메일 중복 처리 오류: clientIP={}", clientIP, e);
             sendErrorResponse(exchange, 500, "Internal server error");
         }
     }

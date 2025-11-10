@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
  * </p>
  * 
  * @author bang9634
+ * @since 2025-11-10
  */
 public class User {
     private String userId;          // 사용자의 ID
@@ -25,8 +26,7 @@ public class User {
      * <p>
      * 계정 생성 날짜를 현재 로컬 시간으로 초기화한다.
      * 계정 활성화 여부를 true로 설정한다.
-     * 
-     * @author bang9634
+     * </p>
      */
     public User() {
         this.createdAt = LocalDateTime.now();
@@ -39,12 +39,12 @@ public class User {
      * 매개변수로 사용자의 아이디와 비밀번호, 이름, 이메일을 받아 초기화한다.
      * 계정 생성 날짜를 현재 로컬 시간으로 초기화한다.
      * 계정 활성화 여부를 true로 설정한다.
+     * </p>
      * 
      * @param userId 사용자의 아이디
      * @param password 사용자의 비밀번호
      * @param name 사용자의 이름
      * @param email 사용자의 이메일
-     * @author bang9634
      */
     public User(String userId, String password, String name, String email) {
         this();
@@ -80,9 +80,9 @@ public class User {
      * <p>
      * 사용자의 ID, 이름, 이메일, 활성화 상태를 포함한 문자열을 생성한다.
      * 비밀번호와 생성 날짜는 보안과 가독성을 위해 제외된다.
+     * </p>
      * 
      * @return User 객체의 문자열 표현 (형식: "User{userId='값', name='값', email='값', active=값}")
-     * @author bang9634
      */
     @Override
     public String toString() {
