@@ -138,14 +138,12 @@ public class UserController {
             // JSON 형태의 Response 생성
             String jsonResponse = gson.toJson(response);
 
-            // Response의 성공 여부에 따라 HTTP status 코드 생성 (성공: 200, 실패: 400)
-            int statusCode = response.isSuccess() ? 200 : 400;
-            
+            // 예외가 발생하지 않는다면 스테이터스 코드는 200
             logger.info("회원가입 결과: userId={}, success={}, status={}", 
-                request.getUserId(), response.isSuccess(), statusCode);
-            
+                request.getUserId(), response.isSuccess(), 200);
+    
             // 클라이언트에 JSON형태의 Response 전송
-            sendJsonResponse(exchange, statusCode, jsonResponse);
+            sendJsonResponse(exchange, 200, jsonResponse);
             
         } catch (JsonSyntaxException e) {
             logger.error("JSON 파싱 오류: clientIP={}", clientIP, e);
