@@ -8,3 +8,6 @@ backend/planp/target/
 frontend/.DS_Store
 frontend/dist/
 frontend/node_modules/
+
+# vscode 설정파일
+.vscode

@@ -4,6 +4,7 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Lightbulb } from "lucide-react";
+import { apiService, SignupRequest } from "../services/api";
 
 interface SignupFormProps {
   onSignup: (id: string, password: string, confirmPassword: string) => void;
@@ -11,18 +12,59 @@ interface SignupFormProps {
 }
 
 export function SignupForm({ onSignup, onLoginClick }: SignupFormProps) {
-  const [id, setId] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [formData, setFormData] = useState({
+    id: "",
+    name: "",
+    email: "",
+    password: "",
+    confirmPassword: ""
+  });
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleInputChange = (field: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData(prev => ({ ...prev, [field]: e.target.value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (id && password && confirmPassword) {
-      if (password !== confirmPassword) {
-        alert("비밀번호가 일치하지 않습니다.");
-        return;
+    
+    const { id, name, email, password, confirmPassword } = formData;
+
+    // 유효성 검사
+    if (!id || !name || !email || !password || !confirmPassword) {
+      alert("모든 필드를 입력해주세요.");
+      return;
+    }
+    
+    if (password !== confirmPassword) {
+      alert("비밀번호가 일치하지 않습니다.");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const signupData: SignupRequest = {
+        userId: id,
+        password: password,
+        name: name,
+        email: email
+      };
+
+      // 백엔드 API 호출
+      const result = await apiService.signup(signupData);
+
+      if (result.success) {
+        alert("회원가입이 완료되었습니다!");
+        onSignup(id, password, confirmPassword); // 기존 콜백 호출
+      } else {
+        alert(`회원가입 실패: ${result.message}`);
       }
-      onSignup(id, password, confirmPassword);
+    } catch (error) {
+      console.error('회원가입 오류:', error);
+      alert('서버와의 연결에 문제가 발생했습니다.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -44,9 +86,7 @@ export function SignupForm({ onSignup, onLoginClick }: SignupFormProps) {
         <Card>
           <CardHeader>
             <CardTitle>회원가입</CardTitle>
-            <CardDescription>
-              새 계정을 만들어보세요
-            </CardDescription>
+            <CardDescription>새 계정을 만들어보세요</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -55,9 +95,33 @@ export function SignupForm({ onSignup, onLoginClick }: SignupFormProps) {
                 <Input
                   id="signup-id"
                   type="text"
-                  value={id}
-                  onChange={(e) => setId(e.target.value)}
+                  value={formData.id}
+                  onChange={handleInputChange('id')}
                   placeholder="사용할 아이디를 입력하세요"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="signup-name">이름</Label>
+                <Input
+                  id="signup-name"
+                  type="text"
+                  value={formData.name}
+                  onChange={handleInputChange('name')}
+                  placeholder="이름을 입력하세요"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="signup-email">이메일</Label>
+                <Input
+                  id="signup-email"
+                  type="email"
+                  value={formData.email}
+                  onChange={handleInputChange('email')}
+                  placeholder="이메일을 입력하세요"
                   required
                 />
               </div>
@@ -67,8 +131,8 @@ export function SignupForm({ onSignup, onLoginClick }: SignupFormProps) {
                 <Input
                   id="signup-password"
                   type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  value={formData.password}
+                  onChange={handleInputChange('password')}
                   placeholder="비밀번호를 입력하세요"
                   required
                 />
@@ -79,15 +143,15 @@ export function SignupForm({ onSignup, onLoginClick }: SignupFormProps) {
                 <Input
                   id="confirm-password"
                   type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  value={formData.confirmPassword}
+                  onChange={handleInputChange('confirmPassword')}
                   placeholder="비밀번호를 다시 입력하세요"
                   required
                 />
               </div>
 
-              <Button type="submit" className="w-full">
-                회원가입
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? "처리 중..." : "회원가입"}
               </Button>
             </form>
 
