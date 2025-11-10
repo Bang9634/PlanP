@@ -1,4 +1,22 @@
-const API_BASE_URL = 'http://localhost:8080/api';
+declare global {
+  interface Window {
+    APP_CONFIG?: {
+      API_BASE_URL: string;
+    };
+  }
+}
+
+const getApiBaseUrl = (): string => {
+  // 런타임 설정 확인
+  if (typeof window !== 'undefined' && window.APP_CONFIG) {
+    return window.APP_CONFIG.API_BASE_URL;
+  }
+  
+  // 환경변수 또는 기본값
+  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
+}
+
+const API_BASE_URL = getApiBaseUrl();
 
 export interface SignupRequest {
   userId: string;

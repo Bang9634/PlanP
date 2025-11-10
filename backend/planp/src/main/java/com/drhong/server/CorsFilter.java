@@ -171,6 +171,7 @@ public class CorsFilter extends Filter {
         // 개발 환경에서 주로 사용하는 localhost 패턴들을 허용
         return origin.equals("http://localhost:3000") ||      // 프론트엔드 개발 서버
                origin.equals("http://localhost:8080") ||      // 백엔드 API 서버  
+               origin.equals("http://49.50.133.229:8080") ||  // nCloud 서버 
                origin.startsWith("http://localhost:") ||      // 기타 localhost 포트
                origin.startsWith("http://127.0.0.1:");        // IP 기반 localhost
         
