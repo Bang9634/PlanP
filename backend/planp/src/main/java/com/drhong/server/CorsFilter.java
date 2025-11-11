@@ -169,6 +169,7 @@ public class CorsFilter extends Filter {
      */
     private boolean isAllowedOrigin(String origin) {
         // 개발 환경에서 주로 사용하는 localhost 패턴들을 허용
+        // TODO: 하드코딩된 클라우드 서버 IP를 제거하고 환경변수를 사용하도록 수정
         return origin.equals("http://localhost:3000") ||      // 프론트엔드 개발 서버
                origin.equals("http://localhost:8080") ||      // 백엔드 API 서버  
                origin.equals("http://49.50.133.229:8080") ||  // nCloud 서버 
