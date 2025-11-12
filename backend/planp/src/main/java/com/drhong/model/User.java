@@ -18,6 +18,7 @@ public class User {
     private String password;        // 사용자의 비밀번호. 데이터베이스에 전송할 땐 해싱해서 보낸다.
     private String name;            // 사용자의 이름
     private String email;           // 사용자의 이메일
+    private String phone;           // 사용자의 전화번호
     private LocalDateTime createdAt;// 계정 생성 날짜
     private boolean active;         // 계정 활성화 여부
 
@@ -36,7 +37,7 @@ public class User {
     /**
      * 로그인용 유저 객체를 생성한다.
      * <p>
-     * 매개변수로 사용자의 아이디와 비밀번호, 이름, 이메일을 받아 초기화한다.
+     * 매개변수로 사용자의 아이디와 비밀번호, 이름, 이메일, 전화번호를 받아 초기화한다.
      * 계정 생성 날짜를 현재 로컬 시간으로 초기화한다.
      * 계정 활성화 여부를 true로 설정한다.
      * </p>
@@ -45,13 +46,15 @@ public class User {
      * @param password 사용자의 비밀번호
      * @param name 사용자의 이름
      * @param email 사용자의 이메일
+     * @param phone 사용자의 전화번호
      */
-    public User(String userId, String password, String name, String email) {
+    public User(String userId, String password, String name, String email, String phone) {
         this();
         this.userId = userId;
         this.password = password;
         this.name = name;
         this.email = email;
+        this.phone = phone;
     }
 
     /**
@@ -69,6 +72,9 @@ public class User {
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
 
+    public String getPhone() { return phone; }
+    public void setPhone(String phone) { this.phone = phone; }
+
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 
@@ -78,15 +84,15 @@ public class User {
     /**
      * User 객체의 문자열 표현을 반환한다.
      * <p>
-     * 사용자의 ID, 이름, 이메일, 활성화 상태를 포함한 문자열을 생성한다.
+     * 사용자의 ID, 이름, 이메일, 전화번호, 활성화 상태를 포함한 문자열을 생성한다.
      * 비밀번호와 생성 날짜는 보안과 가독성을 위해 제외된다.
      * </p>
      * 
-     * @return User 객체의 문자열 표현 (형식: "User{userId='값', name='값', email='값', active=값}")
+     * @return User 객체의 문자열 표현 (형식: "User{userId='값', name='값', email='값', phone='값', active=값}")
      */
     @Override
     public String toString() {
-        return String.format("User{userId='%s', name='%s', email='%s', active=%s}", 
-                           userId, name, email, active);
+        return String.format("User{userId='%s', name='%s', email='%s', phone='%s', active=%s}", 
+            userId, name, email, phone, active);
     }
 }

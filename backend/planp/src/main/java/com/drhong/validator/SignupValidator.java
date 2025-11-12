@@ -83,6 +83,36 @@ public class SignupValidator {
         Pattern.compile("^[A-Za-z0-9+_.-]+@([A-Za-z0-9.-]+\\.[A-Za-z]{2,})$");
     
     /**
+     * 전화번호 형식 검증을 위한 정규표현식 패턴
+     * <p>
+     * 한국 휴대전화 번호 형식을 검증한다.
+     * 010, 011, 016, 017, 018, 019로 시작하는 번호를 허용한다.
+     * </p>
+     * 
+     * <h4>허용 규칙:</h4>
+     * <ul>
+     *   <li><strong>시작:</strong> 010, 011, 016, 017, 018, 019</li>
+     *   <li><strong>중간:</strong> 3-4자리 숫자</li>
+     *   <li><strong>끝:</strong> 4자리 숫자</li>
+     *   <li><strong>하이픈:</strong> 있어도 되고 없어도 됨</li>
+     * </ul>
+     * 
+     * <h4>예시:</h4>
+     * <ul>
+     *   <li>✅ 010-1234-5678</li>
+     *   <li>✅ 01012345678</li>
+     *   <li>✅ 011-123-4567</li>
+     *   <li>✅ 0171234567</li>
+     *   <li>❌ 02-1234-5678 (일반 전화)</li>
+     *   <li>❌ 010-12345-678 (자리수 오류)</li>
+     * </ul>
+     * 
+     * @implNote 하이픈은 선택적으로 허용하여 사용자 편의성 향상
+     */
+    private static final Pattern PHONE_PATTERN = 
+        Pattern.compile("^01[016789]-?[0-9]{3,4}-?[0-9]{4}$");
+    
+    /**
      * 사용자 ID 허용 형식을 정의하는 정규표현식
      * <p>
      * 시스템 내에서 사용자를 고유하게 식별하는 ID의 형식을 제한한다.
@@ -179,6 +209,9 @@ public class SignupValidator {
         
         // 이메일 검증
         validateEmail(request.getEmail(), errors);
+        
+        // 전화번호 검증
+        validatePhone(request.getPhone(), errors);
 
         return errors;
     }
@@ -334,6 +367,47 @@ public class SignupValidator {
             errors.add("이메일은 필수입니다.");
         } else if (!EMAIL_PATTERN.matcher(email).matches()) {
             errors.add("올바른 이메일 형식이 아닙니다.");
+        }
+    }
+
+    /**
+     * 전화번호의 유효성을 검증하는 헬퍼 메서드
+     * <p>
+     * 전화번호는 선택적 입력 항목이지만, 입력된 경우 정확한 형식 검증이 필요하다.
+     * 한국 휴대전화 번호 형식을 검증한다.
+     * </p>
+     * 
+     * <h4>검증 규칙:</h4>
+     * <ol>
+     *   <li>null이거나 빈 문자열인 경우 검증 통과 (선택적 필드)</li>
+     *   <li>값이 있는 경우 정규표현식 패턴 매칭 검사</li>
+     * </ol>
+     * 
+     * <h4>에러 메시지:</h4>
+     * <ul>
+     *   <li>"올바른 전화번호 형식이 아닙니다. (예: 010-1234-5678 또는 01012345678)" - 형식 위반</li>
+     * </ul>
+     * 
+     * <h4>허용하는 형식:</h4>
+     * <ul>
+     *   <li>하이픈 포함: 010-1234-5678, 011-123-4567</li>
+     *   <li>하이픈 없음: 01012345678, 0111234567</li>
+     *   <li>빈 값: null 또는 빈 문자열 (선택적 입력)</li>
+     * </ul>
+     * 
+     * @param phone 검증할 전화번호 문자열
+     * @param errors 오류 메시지를 추가할 리스트
+     * 
+     * @see #PHONE_PATTERN 전화번호 정규표현식 패턴
+     * @implNote 이메일과 동일하게 선택적 필드로 처리 - null/빈값은 허용하되 값이 있으면 형식 검증
+     */
+    private static void validatePhone(String phone, List<String> errors) {
+        // 전화번호는 선택적 필드이므로 null이나 빈 값은 허용
+        if (phone != null && !phone.trim().isEmpty()) {
+            // 값이 있는 경우에만 형식 검증
+            if (!PHONE_PATTERN.matcher(phone.trim()).matches()) {
+                errors.add("올바른 전화번호 형식이 아닙니다. (예: 010-1234-5678 또는 01012345678)");
+            }
         }
     }
 }

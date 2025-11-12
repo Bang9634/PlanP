@@ -8,7 +8,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-@SuppressWarnings("unused")
 @DisplayName("PasswordUtil 테스트")
 class PasswordUtilTest {
 
@@ -21,11 +20,13 @@ class PasswordUtilTest {
         void hashPassword() {
             String password = "testPassword123";
             String hashedPassword = PasswordUtil.hash(password);
-            
+
             assertThat(hashedPassword).isNotNull();
             assertThat(hashedPassword).isNotEqualTo(password);
-            assertThat(hashedPassword).startsWith("$2a$12$");
+            assertThat(hashedPassword).startsWith("$2a$"); // 라운드 숫자는 환경/설정 변경 가능성 있으므로 prefix만 확인
             assertThat(hashedPassword).hasSize(60);
+            assertThat(PasswordUtil.isValidHash(hashedPassword)).isTrue();
+            assertThat(PasswordUtil.getRounds(hashedPassword)).isEqualTo(12); // DEFAULT_ROUNDS 기대
         }
 
         @Test
@@ -34,8 +35,10 @@ class PasswordUtilTest {
             String password = "samePassword";
             String hash1 = PasswordUtil.hash(password);
             String hash2 = PasswordUtil.hash(password);
-            
+
             assertThat(hash1).isNotEqualTo(hash2);
+            assertThat(PasswordUtil.verify(password, hash1)).isTrue();
+            assertThat(PasswordUtil.verify(password, hash2)).isTrue();
         }
 
         @Test
@@ -44,6 +47,34 @@ class PasswordUtilTest {
             assertThatThrownBy(() -> PasswordUtil.hash(null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("비밀번호는 null이거나 빈 문자열일 수 없습니다.");
+        }
+
+        @Test
+        @DisplayName("빈 문자열 비밀번호 해싱 - 예외 발생")
+        void hashEmptyPassword() {
+            assertThatThrownBy(() -> PasswordUtil.hash("   "))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("비밀번호는 null이거나 빈 문자열일 수 없습니다.");
+        }
+
+        @Test
+        @DisplayName("커스텀 라운드 해싱 - 성공")
+        void hashWithCustomRounds() {
+            String password = "customRoundsPassword";
+            String hashed = PasswordUtil.hash(password, 10);
+            assertThat(hashed).startsWith("$2a$10$");
+            assertThat(PasswordUtil.getRounds(hashed)).isEqualTo(10);
+        }
+
+        @Test
+        @DisplayName("잘못된 라운드 값 - 예외")
+        void hashWithInvalidRounds() {
+            assertThatThrownBy(() -> PasswordUtil.hash("password", 3))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("라운드는 4-31 사이여야 합니다.");
+            assertThatThrownBy(() -> PasswordUtil.hash("password", 40))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("라운드는 4-31 사이여야 합니다.");
         }
     }
 
@@ -56,7 +87,7 @@ class PasswordUtilTest {
         void verifyCorrectPassword() {
             String password = "correctPassword123";
             String hashedPassword = PasswordUtil.hash(password);
-            
+
             assertThat(PasswordUtil.verify(password, hashedPassword)).isTrue();
         }
 
@@ -66,8 +97,25 @@ class PasswordUtilTest {
             String password = "correctPassword123";
             String wrongPassword = "wrongPassword123";
             String hashedPassword = PasswordUtil.hash(password);
-            
+
             assertThat(PasswordUtil.verify(wrongPassword, hashedPassword)).isFalse();
+        }
+
+        @Test
+        @DisplayName("null 값 검증 - false")
+        void verifyNullValues() {
+            assertThat(PasswordUtil.verify(null, null)).isFalse();
+            assertThat(PasswordUtil.verify(null, "$2a$12$invalidhash")) .isFalse();
+            assertThat(PasswordUtil.verify("password", null)).isFalse();
+        }
+
+        @Test
+        @DisplayName("잘못된 해시 형식 검증 - false")
+        void verifyInvalidHashFormat() {
+            String invalidHash = "not-a-bcrypt-hash";
+            assertThat(PasswordUtil.verify("password", invalidHash)).isFalse();
+            assertThat(PasswordUtil.isValidHash(invalidHash)).isFalse();
+            assertThat(PasswordUtil.getRounds(invalidHash)).isEqualTo(-1);
         }
     }
 
@@ -76,7 +124,7 @@ class PasswordUtilTest {
     class PasswordStrengthTests {
 
         @ParameterizedTest
-        @ValueSource(strings = {"Password123!", "StrongPass1@"})
+        @ValueSource(strings = {"Password123!", "StrongPass1@", "Aa1!Aa1!Aa1!"})
         @DisplayName("강한 비밀번호")
         void strongPassword(String password) {
             int strength = PasswordUtil.getPasswordStrength(password);
@@ -86,7 +134,7 @@ class PasswordUtilTest {
         }
 
         @ParameterizedTest
-        @ValueSource(strings = {"password", "123456", "abc"})
+        @ValueSource(strings = {"password", "123456", "abc", "AAAAAA", "!!!!!!"})
         @DisplayName("약한 비밀번호")
         void weakPassword(String password) {
             int strength = PasswordUtil.getPasswordStrength(password);
@@ -94,14 +142,44 @@ class PasswordUtilTest {
             assertThat(PasswordUtil.getPasswordStrengthText(password))
                 .isIn("매우 약함", "약함");
         }
+
+        @Test
+        @DisplayName("비밀번호 다양성 계산")
+        void passwordVariety() {
+            assertThat(PasswordUtil.getPasswordStrength("aaaaaa")).isLessThanOrEqualTo(30);
+            assertThat(PasswordUtil.getPasswordStrength("aaaaaaA")).isGreaterThan(30);
+            assertThat(PasswordUtil.getPasswordStrength("aaaaaaA1")).isGreaterThan(40);
+            assertThat(PasswordUtil.getPasswordStrength("aaaaaaA1!")).isGreaterThan(50);
+        }
     }
 
-    @Test
-    @DisplayName("임시 비밀번호 생성")
-    void generateTemporaryPassword() {
-        String tempPassword = PasswordUtil.generateTemporaryPassword(12);
-        
-        assertThat(tempPassword).hasSize(12);
-        assertThat(PasswordUtil.getPasswordStrength(tempPassword)).isGreaterThan(60);
+    @Nested
+    @DisplayName("임시 비밀번호 생성 테스트")
+    class TemporaryPasswordTests {
+        @Test
+        @DisplayName("길이 12 임시 비밀번호 생성 - 강도 60 이상")
+        void generateTemporaryPassword() {
+            String tempPassword = PasswordUtil.generateTemporaryPassword(12);
+            assertThat(tempPassword).hasSize(12);
+            assertThat(PasswordUtil.getPasswordStrength(tempPassword)).isGreaterThan(60);
+        }
+
+        @Test
+        @DisplayName("최소 길이 제한 - 예외")
+        void generateTooShortTempPassword() {
+            assertThatThrownBy(() -> PasswordUtil.generateTemporaryPassword(7))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("임시 비밀번호는 최소 8자 이상이어야 합니다.");
+        }
+
+        @Test
+        @DisplayName("임시 비밀번호 다양성 검증")
+        void temporaryPasswordVariety() {
+            String tempPassword = PasswordUtil.generateTemporaryPassword(10);
+            assertThat(tempPassword).matches(".*[A-Z].*");
+            assertThat(tempPassword).matches(".*[a-z].*");
+            assertThat(tempPassword).matches(".*[0-9].*");
+            assertThat(tempPassword).matches(".*[!@#$%^&*].*");
+        }
     }
 }
