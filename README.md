@@ -173,6 +173,14 @@ PlanP/
 │   └── dist/              # 빌드 결과물
 └── README.md              # 프로젝트 문서
 ```
+### GIT Branch 구조
+- **main**: 배포 브랜치
+- **dev**: 개발 브랜치
+- **feat/**: 기능 개발 (주로 백엔드)
+- **feat/front/**: 프론트 엔드 개발
+
+### merge 전략
+- **Squash & Merge 사용**: 특별한 경우가 아니라면, 대부분의 Merge는 Squash & Merge 전략을 사용
 
 ## 🌐 API 문서
 
