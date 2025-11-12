@@ -1,0 +1,13 @@
+# macOS 폴더 정보
+.DS_Store
+
+# 백엔드 ignore 목록
+backend/planp/target/
+
+# 프론트엔드 ignore 목록
+frontend/.DS_Store
+frontend/dist/
+frontend/node_modules/
+
+# vscode 설정파일
+.vscode
