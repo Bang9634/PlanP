@@ -184,8 +184,7 @@ public class UserService {
                 request.getUserId(),
                 hashedPassword,
                 request.getName(),
-                request.getEmail(),
-                request.getPhone()
+                request.getEmail()
             );
 
             // 7. 데이터베이스에 저장
@@ -196,8 +195,8 @@ public class UserService {
             }
 
             // 8. 성공 응답
-            logger.info("회원가입 성공: userId={}, email={}, phone={}", 
-                request.getUserId(), request.getEmail(), request.getPhone());
+            logger.info("회원가입 성공: userId={}, email={}",
+                request.getUserId(), request.getEmail());
             return new SignupResponse(true, "회원가입이 완료되었습니다.", request.getUserId());
 
         } catch (Exception e) {

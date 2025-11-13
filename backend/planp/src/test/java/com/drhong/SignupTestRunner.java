@@ -39,7 +39,7 @@ public class SignupTestRunner {
 
     private static void testNormalSignup(UserService userService) {
         SignupRequest request = new SignupRequest(
-            "testuser1", "password123123", "홍길동", "hong@example.com", "010-1111-1111"
+            "testuser1", "password123123", "홍길동", "hong@example.com"
         );
         SignupResponse response = userService.signup(request);
         
@@ -51,7 +51,7 @@ public class SignupTestRunner {
     private static void testDuplicateId(UserService userService) {
         // 같은 ID로 재시도
         SignupRequest request = new SignupRequest(
-            "testuser1", "newpassword123123", "김철수", "kim@example.com", null
+            "testuser1", "newpassword123123", "김철수", "kim@example.com"
         );
         SignupResponse response = userService.signup(request);
         
@@ -63,7 +63,7 @@ public class SignupTestRunner {
     private static void testDuplicateEmail(UserService userService) {
         // 같은 이메일로 재시도
         SignupRequest request = new SignupRequest(
-            "testuser2", "password456123", "이영희", "hong@example.com", "010-2222-2222"
+            "testuser2", "password456123", "이영희", "hong@example.com"
         );
         SignupResponse response = userService.signup(request);
         
@@ -74,7 +74,7 @@ public class SignupTestRunner {
 
     private static void testInvalidInput(UserService userService) {
         SignupRequest request = new SignupRequest(
-            "ab", "123", "", "invalid-email", null
+            "ab", "123", "", "invalid-email"
         );
         SignupResponse response = userService.signup(request);
         

@@ -191,7 +191,7 @@ public class UserController {
      * 
      * @param exchange HTTP 요청/응답 처리를 위한 교환 객체
      * @throws IOException 네트워크 I/O 처리 중 오류가 발생한 경우
-     * 
+     * @author wnwoghd
      * @apiNote LoginRequest DTO를 사용하여 타입 안정성을 보장함
      */
     public void handleLogin(HttpExchange exchange) throws IOException {

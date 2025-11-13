@@ -13,8 +13,7 @@ package com.drhong.dto;
  *   "userId": "myuser123",
  *   "password": "securePassword!",
  *   "name": "홍길동",
- *   "email": "hong@example.com",
- *   "phone": "010-1234-5678"
+ *   "email": "hong@example.com"
  * }
  * }</pre>
  * 
@@ -25,7 +24,6 @@ package com.drhong.dto;
  *   <li>password: 최소 8자 이상, 대소문자, 숫자, 특수문자 포함</li>
  *   <li>name: 실명 (2-50자)</li>
  *   <li>email: 유효한 이메일 형식</li>
- *   <li>phone: 유효한 전화번호 형식 (예: 010-1234-5678)</li>
  * </ul>
  * 
  * @author bang9634
@@ -39,7 +37,6 @@ public class SignupRequest {
     private String password; // 사용자 비밀번호 (평문, 서버에서 해시화되어 저장)
     private String name;     // 사용자 이름
     private String email;    // 사용자 이메일
-    private String phone;    // 사용자 전화번호
 
     /**
      * 기본 생성자
@@ -61,14 +58,12 @@ public class SignupRequest {
      * @param password 비밀번호 (필수, null 불가)
      * @param name 사용자 이름 (필수, null 불가)
      * @param email 이메일 주소 (필수, null 불가)
-     * @param phone 전화번호 (필수, null 불가)
      */
-    public SignupRequest(String userId, String password, String name, String email, String phone) {
+    public SignupRequest(String userId, String password, String name, String email) {
         this.userId = userId;
         this.password = password;
         this.name = name;
         this.email = email;
-        this.phone = phone;
     }
 
     // 게터와 세터
@@ -93,9 +88,6 @@ public class SignupRequest {
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
 
-    public String getPhone() { return phone; }
-    public void setPhone(String phone) { this.phone = phone; }
-
     /**
      * 객체의 문자열 표현을 반환하는 메서드
      * <p>
@@ -103,13 +95,13 @@ public class SignupRequest {
      * <strong>보안상 비밀번호는 포함되지 않는다.</strong>
      * </p>
      * 
-     * @return 사용자 ID, 이름, 이메일, 전화번호를 포함한 문자열
+     * @return 사용자 ID, 이름, 이메일을 포함한 문자열
      * 
      * @implNote 비밀번호는 보안상 toString()에 포함하지 않음
      */
     @Override
     public String toString() {
-        return String.format("SignupRequest{userId='%s', name='%s', email='%s', phone='%s'}", 
-                           userId, name, email, phone);
+        return String.format("SignupRequest{userId='%s', name='%s', email='%s'}", 
+                           userId, name, email );
     }
 }
