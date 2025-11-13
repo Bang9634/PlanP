@@ -75,27 +75,15 @@
                     <release>21</release>
                 </configuration>
             </plugin>
+
+            <!-- Maven Surefire Plugin (테스트 실행용) -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.1.2</version>
             </plugin>
 
-            <!-- JAR 실행을 위한 메인 클래스 설정 -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
-                <version>3.3.0</version>
-                <configuration>
-                    <archive>
-                        <manifest>
-                            <mainClass>com.drhong.Main</mainClass>
-                        </manifest>
-                    </archive>
-                </configuration>
-            </plugin>
-            
-            <!-- Maven Shade Plugin - Fat JAR 생성 -->
+            <!-- Maven Shade Plugin (Fat JAR 생성) -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
@@ -126,8 +114,10 @@
                                     </excludes>
                                 </filter>
                             </filters>
-                            <!-- 최종 JAR 파일명 설정 -->
-                            <finalName>planp-backend</finalName>
+                            <!-- 원본 JAR을 Fat JAR로 대체 -->
+                            <shadedArtifactAttached>false</shadedArtifactAttached>
+                            <!-- createDependencyReducedPom을 false로 설정하여 dependency-reduced-pom.xml 생성 방지 -->
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
                         </configuration>
                     </execution>
                 </executions>
