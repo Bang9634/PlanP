@@ -23,9 +23,20 @@
     /* Path aliases */
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
-    }
+      "@/*": ["./src/*"],
+      "@/components/*": ["./components/*"],
+      "@/services/*": ["./services/*"],
+      "@/styles/*": ["./styles/*"]
+    },
+
+    /* Vite specific */
+    "types": ["vite/client"]
   },
-  "include": ["src"],
+  "include": [
+    "src",
+    "components",
+    "services",
+    "src/vite-env.d.ts"
+  ],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
