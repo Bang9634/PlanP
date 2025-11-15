@@ -4,10 +4,15 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --port 3000",
+    "dev:local": "vite --port 3000 --mode development",
     "build": "vite build",
-    "preview": "vite preview",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build:prod": "vite build --mode production",
+    "build:staging": "vite build --mode staging",
+    "preview": "vite preview --port 3000",
+    "preview:prod": "vite preview --port 80 --mode production",
+    "type-check": "tsc --noEmit",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
   },
   "keywords": [],
   "author": "",

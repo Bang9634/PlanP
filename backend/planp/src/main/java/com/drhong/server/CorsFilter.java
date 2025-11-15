@@ -1,10 +1,13 @@
 package com.drhong.server;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.drhong.config.EnvironmentConfig;
 import com.sun.net.httpserver.Filter;
 import com.sun.net.httpserver.HttpExchange;
 
@@ -33,13 +36,6 @@ import com.sun.net.httpserver.HttpExchange;
  *   <li><code>Access-Control-Max-Age</code> - Preflight 결과 캐시 시간</li>
  * </ul>
  * 
- * <h3>보안 정책:</h3>
- * <p>
- * 개발 환경에서는 localhost 기반 요청을 허용하고, 
- * 알 수 없는 Origin에 대해서는 와일드카드(*)를 사용한다.
- * 프로덕션 환경에서는 더 엄격한 검증이 권장된다.
- * </p>
- * 
  * @author bang9634
  * @since 2025-11-10
  * 
@@ -51,6 +47,14 @@ public class CorsFilter extends Filter {
 
     /** SLF4J 로거 인스턴스 - CORS 처리 과정을 로깅 */
     private static final Logger logger = LoggerFactory.getLogger(CorsFilter.class);
+
+    /** 환경변수 기반 허용 오리진 목록 */
+    private final List<String> allowedOrigins;
+
+    public CorsFilter() {
+        this.allowedOrigins = Arrays.asList(EnvironmentConfig.getAllowedOrigins());
+        logger.info("Cors 허용 오리진 목록: {}", allowedOrigins);
+    }
 
     /**
      * HTTP 요청을 필터링하여 CORS 헤더를 추가하는 메인 메서드
@@ -102,15 +106,16 @@ public class CorsFilter extends Filter {
      * HTTP 응답에 CORS 관련 헤더를 설정하는 헬퍼 메서드
      * <p>
      * 요청의 Origin을 검증하여 적절한 CORS 헤더를 설정한다.
-     * 개발 환경에서는 localhost 요청을 허용하고, 
-     * 알 수 없는 출처에 대해서는 와일드카드를 사용한다.
+     * 허용된 Origin의 경우 정확한 Origin을 설정하고,
+     * 개발 환경에서는 와일드카드(*)을 사용하고, 
+     * 허용되지 않은 Origin에 대해서는 null을 설정한다.
      * </p>
      * 
      * <h4>Origin 검증 로직:</h4>
      * <ul>
-     *   <li><strong>localhost 계열:</strong> 정확한 Origin 반환 (개발 환경)</li>
-     *   <li><strong>알 수 없는 Origin:</strong> 와일드카드(*) 사용</li>
-     *   <li><strong>Origin 없음:</strong> 와일드카드(*) 사용 (직접 API 호출)</li>
+     *   <li><strong>허용된 Origin:</strong> 정확한 Origin 설정</li>
+     *   <li><strong>개발환경:</strong> 와일드카드(*) 사용</li>
+     *   <li><strong>허용되지 않는 Origin:</strong> null 설정</li>
      * </ul>
      * 
      * @param exchange HTTP 요청/응답 교환 객체
@@ -119,15 +124,19 @@ public class CorsFilter extends Filter {
      * @apiNote 프로덕션 환경에서는 허용할 도메인을 명시적으로 관리하는 것이 보안상 더 안전
      */
     private void setCorsHeaders(HttpExchange exchange, String origin) {
-        // Origin 기반 Access-Control-Allow-Origin 설정
+        // 환경변수 기반 Origin 검증
         if (origin != null && isAllowedOrigin(origin)) {
             // 허용된 Origin인 경우 정확한 Origin 값 설정
             exchange.getResponseHeaders().set("Access-Control-Allow-Origin", origin);
             logger.debug("허용된 Origin 설정: {}", origin);
-        } else {
-            // 알 수 없는 Origin이거나 Origin이 없는 경우 와일드카드 사용
+        } else if (EnvironmentConfig.getCurrentEnvironment() == EnvironmentConfig.Environment.DEVELOPMENT) {
+            // 개발 환경에서는 모든 오리진 허용
             exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
-            logger.debug("와일드카드 Origin 설정: origin={}", origin);
+            logger.debug("개발환경 - 와일드카드 Origin 설정");
+        } else {
+            // 프로덕션에서는 허용되지 않는 Origin 차단
+            exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "null");
+            logger.warn("허용되지 않은 Origin 요청: {}", origin);
         }
 
         // 허용된 HTTP 메서드 설정
@@ -138,8 +147,8 @@ public class CorsFilter extends Filter {
         exchange.getResponseHeaders().set("Access-Control-Allow-Headers",
             "Content-Type, Accept, Authorization, X-Requested-With, Origin");
 
-        // 인증 정보(쿠키, 인증 헤더) 포함 여부 - 현재는 비허용
-        exchange.getResponseHeaders().set("Access-Control-Allow-Credentials", "false");
+        // 인증 정보(쿠키, 인증 헤더) 포함 여부
+        exchange.getResponseHeaders().set("Access-Control-Allow-Credentials", "true");
 
         // Preflight 결과 캐시 시간 (3600초 = 1시간)
         exchange.getResponseHeaders().set("Access-Control-Max-Age", "3600");
@@ -150,34 +159,30 @@ public class CorsFilter extends Filter {
     /**
      * 주어진 Origin이 허용된 출처인지 검증하는 헬퍼 메서드
      * <p>
-     * 개발 환경에서 사용하는 localhost 기반 URL들을 허용한다.
-     * 보안을 위해 알려진 패턴만 허용하며, 프로덕션에서는 더 엄격한 검증이 필요하다.
+     * 환경변수를 기반으로 Origin을 검증한다.
      * </p>
-     * 
-     * <h4>허용되는 Origin 패턴:</h4>
-     * <ul>
-     *   <li><code>http://localhost:3000</code> - 프론트엔드 개발 서버</li>
-     *   <li><code>http://localhost:8080</code> - 백엔드 API 서버</li>
-     *   <li><code>http://localhost:[포트]</code> - 기타 localhost 포트</li>
-     *   <li><code>http://127.0.0.1:[포트]</code> - IP 주소 기반 localhost</li>
-     * </ul>
      * 
      * @param origin 검증할 Origin 문자열
      * @return 허용된 Origin이면 true, 그렇지 않으면 false
-     * 
-     * @implNote 프로덕션에서는 허용할 도메인 목록을 외부 설정 파일로 관리하는 것을 권장
      */
     private boolean isAllowedOrigin(String origin) {
-        // 개발 환경에서 주로 사용하는 localhost 패턴들을 허용
-        // TODO: 하드코딩된 클라우드 서버 IP를 제거하고 환경변수를 사용하도록 수정
-        return origin.equals("http://localhost:3000") ||      // 프론트엔드 개발 서버
-               origin.equals("http://localhost:8080") ||      // 백엔드 API 서버  
-               origin.equals("http://49.50.133.229:8080") ||  // nCloud 서버 
-               origin.startsWith("http://localhost:") ||      // 기타 localhost 포트
-               origin.startsWith("http://127.0.0.1:");        // IP 기반 localhost
-        
-        // TODO: 프로덕션 환경에서는 실제 도메인 추가 필요
-        // 예: origin.equals("https://planp.com") || origin.equals("https://www.planp.com")
+        if (origin == null) {
+            return false;
+        }
+
+        // 정확한 매치
+        if (allowedOrigins.contains(origin)) {
+            return true;
+        }
+
+        // 와일드카드 매치 (예: http://localhost:*)
+        return allowedOrigins.stream().anyMatch(allowed -> {
+            if (allowed.endsWith("*")) {
+                String prefix = allowed.substring(0, allowed.length() - 1);
+                return origin.startsWith(prefix);
+            }
+            return false;
+        });
     }
 
     /**
@@ -191,6 +196,6 @@ public class CorsFilter extends Filter {
      */
     @Override
     public String description() {
-        return "CORS Filter for PlanP API - Cross-Origin Resource Sharing 정책 처리";
+        return "CORS Filter for PlanP API - 환경변수 기반 Cross-Origin Resource Sharing 정책 처리";
     }
 }

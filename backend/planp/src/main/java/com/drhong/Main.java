@@ -5,6 +5,7 @@ import java.io.IOException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.drhong.config.EnvironmentConfig;
 import com.drhong.server.PlanPServer;
 import com.drhong.service.UserService;
 
@@ -67,34 +68,6 @@ public class Main {
     /** SLF4J 로거 인스턴스 - 메인 애플리케이션 시작 및 설정 로깅 */
     private static final Logger logger = LoggerFactory.getLogger(Main.class);
     
-    /**
-     * 기본 포트 번호
-     * <p>
-     * 웹 애플리케이션에서 일반적으로 사용되는 8080 포트를 기본값으로 설정했다.
-     * 프로덕션에서는 80 또는 443 포트 사용을 고려할 수 있으나,
-     * 개발 환경에서의 편의성을 위해 8080을 선택했다.
-     * </p>
-     * 
-     * @implNote 포트 1024 이하는 관리자 권한이 필요하므로 개발 시 불편함
-     */
-    private static final int DEFAULT_PORT = 8080;
-
-    /**
-     * 기본 호스트 주소
-     * <p>
-     * localhost(127.0.0.1)는 로컬 개발 환경에 적합하다.
-     * 프로덕션에서는 0.0.0.0으로 설정하여 모든 네트워크 인터페이스에서
-     * 접속을 허용할 수 있다.
-     * </p>
-     * 
-     * <h4>호스트 주소 옵션:</h4>
-     * <ul>
-     *   <li><strong>localhost/127.0.0.1:</strong> 로컬 접속만 허용</li>
-     *   <li><strong>0.0.0.0:</strong> 모든 IP에서 접속 허용 (프로덕션)</li>
-     *   <li><strong>특정 IP:</strong> 지정된 네트워크 인터페이스만 바인딩</li>
-     * </ul>
-     */
-    private static final String DEFAULT_HOST = "localhost";
     
     /**
      * 서버 시작 메시지 템플릿
@@ -118,6 +91,13 @@ public class Main {
      * 시스템 초기화부터 서버 시작까지의 전체 과정을 관리하며,
      * 예외 발생 시 적절한 에러 처리와 시스템 종료를 수행한다.
      * </p>
+     * <p>
+     * 애플리케이션 실행 시, 다음과 같은 우선순위로 포트 번호와
+     * 호스트 주소를 결정한다.
+     * 1. 커맨드라인 인수 > 2. 환경변수 > 3. 기본값
+     * 커맨드라인 인수가 잘못된 값이면 예외를 던진다.
+     * 커맨드라인 인수 사용법은 아래에 후술한다.
+     * </p>
      * 
      * <h4>실행 단계:</h4>
      * <ol>
@@ -136,11 +116,11 @@ public class Main {
      * 
      * <h4>커맨드라인 인수:</h4>
      * <pre>{@code
-     * java -jar planp.jar [포트번호]
+     * java -jar planp.jar [포트번호] [호스트주소]
      * 
      * 예시:
-     * java -jar planp.jar 3000     # 포트 3000으로 시작
-     * java -jar planp.jar          # 기본 포트(8080)로 시작
+     * java -jar planp.jar 8080 0.0.0.0  # 포트 8080, 호스트 주소 0.0.0.0으로 시작
+     * java -jar planp.jar               # 환경변수 또는 기본값으로 시작
      * }</pre>
      * 
      * @param args 커맨드라인 인수 배열 (선택적 포트 번호 포함)
@@ -153,14 +133,20 @@ public class Main {
         System.out.println("PlanP 백엔드 서버 초기화 중...\n");
         
         try {
-            // 포트 설정 (프로그램 인수 또는 환경 변수로 변경 가능)
-            int port = getPort(args);
-            String host = getHost(args);
+            // 환경 설정 출력
+            EnvironmentConfig.printConfig();
+
+            // 호스트 및 포트 설정 (프로그램 인수 또는 환경 변수로 변경 가능)
+            String host = getHostFromArgs(args);
+            int port = getPortFromArgs(args);
+
+            logger.info("서버 시작: {}:{} (환경: {})", host, port, EnvironmentConfig.getCurrentEnvironment());
             
             System.out.printf("서버 설정:\n");
             System.out.printf("├─ 호스트: %s\n", host);
             System.out.printf("├─ 포트: %d\n", port);
-            System.out.printf("└─ 환경: %s\n\n", getEnvironmentType());
+            System.out.printf("├─ 환경: %s\n", EnvironmentConfig.getCurrentEnvironment());
+            System.out.printf("└─ 허용 오리진: %s\n\n", String.join(", ", EnvironmentConfig.getAllowedOrigins()));
 
             // 서비스 초기화
             System.out.println("서비스 컴포넌트 초기화...");
@@ -177,7 +163,8 @@ public class Main {
             
             
             System.out.printf("\n서버가 http://%s:%d 에서 시작되었습니다\n", host, port);
-            System.out.println("API 문서: http://" + host + ":" + port + "/health");
+            System.out.println("🏥 Health Check: http://" + host + ":" + port + "/health");
+            System.out.println("🚀 API Endpoint: http://" + host + ":" + port + "/api/");
             System.out.println("종료하려면 Ctrl+C를 누르세요.\n");
             
             // 서버 시작 (블로킹 - 여기서 프로그램이 대기)
@@ -212,7 +199,7 @@ public class Main {
      * <p>
      * 우선순위에 따라 포트 번호를 결정한다:
      * 1. 커맨드라인 인수 > 2. 환경변수 > 3. 기본값
-     * 잘못된 포트 번호가 제공된 경우 경고 메시지와 함께 기본값을 사용한다.
+     * 잘못된 포트 번호가 제공된 경우 경고 메시지와 함께 예외를 던진다.
      * </p>
      * 
      * <h4>검증 규칙:</h4>
@@ -229,20 +216,16 @@ public class Main {
      * 
      * @param args 커맨드라인 인수 배열
      * @return 사용할 포트 번호 (1-65535 범위)
+     * @exception IllegalArgumentException
      * 
      * @apiNote 시스템 포트(1-1023) 사용 시 관리자 권한이 필요할 수 있음
      */
-    private static int getPort(String[] args) {
+    private static int getPortFromArgs(String[] args) {
         // 1. 프로그램 인수에서 포트 확인
         if (args.length > 0) {
             try {
                 int port = Integer.parseInt(args[0]);
-
-                // 포트 범위 검증
-                if (port < 1 || port > 65535) {
-                    System.err.println("포트 범위 오류: " + port + " (1-65535 사용), 기본값 사용");
-                    return DEFAULT_PORT;
-                }
+                validatePort(port);
 
                 // 시스템 포트 경고
                 if (port < 1024) {
@@ -253,32 +236,22 @@ public class Main {
                 return port;
 
             } catch (NumberFormatException e) {
-                System.err.println("잘못된 포트 번호: " + args[0] + ", 기본값 사용");
+                throw new IllegalArgumentException("잘못된 포트 번호 형식: " + args[0]);
             }
         }
         
-        // 2. 환경 변수에서 포트 확인
-        String envPort = System.getenv("PLANP_PORT");
-        if (envPort != null && !envPort.trim().isEmpty()) {
-            try {
-                int port = Integer.parseInt(envPort.trim());
+        // EnvironmentConfig에서 포트 가져오기 (환경변수 + 기본값 처리)
+        int envPort = EnvironmentConfig.getPort();
 
-                if (port < 1 || port > 65535) {
-                    System.err.println("환경변수 포트 범위 오류: " + port + ", 기본값 사용");
-                    return DEFAULT_PORT;
-                }
-                
-                System.out.println("환경변수 포트 사용: " + port + " (PLANP_PORT)");
-                return port;
-
-            } catch (NumberFormatException e) {
-                System.err.println("잘못된 환경변수 포트: " + envPort + ", 기본값 사용");
-            }
+        // 환경변수와 기본값 구분해서 로깅
+        String portSource = System.getenv("PLANP_PORT");
+        if (portSource != null) {
+            System.out.println("환경변수 포트 사용: " + envPort + " (PLANP_PORT)");
+        } else {
+            System.out.println("기본 포트 사용: " + envPort);
         }
         
-        // 3. 기본값 반환
-         System.out.println("기본 포트 사용: " + DEFAULT_PORT);
-        return DEFAULT_PORT;
+        return envPort;
     }
         
     /**
@@ -286,7 +259,7 @@ public class Main {
      * <p>
      * 우선순위에 따라 호스트 주소를 결정한다:
      * 1. 커맨드라인 인수 > 2. 환경변수 > 3. 기본값
-     * 보안상 기본적으로 localhost를 사용하며, 프로덕션에서는 설정으로 변경 가능하다.
+     * 보안상 기본값으로 localhost를 사용하며, 프로덕션에서는 환경변수 설정으로 변경 가능하다.
      * </p>
      * 
      * <h4>커맨드라인 사용법:</h4>
@@ -301,12 +274,14 @@ public class Main {
      * @param args 커맨드라인 인수 배열 (두 번째 인수로 호스트 지정 가능)
      * @return 사용할 호스트 주소 문자열
      */
-    private static String getHost(String[] args) {
+    private static String getHostFromArgs(String[] args) {
         // 커맨드라인 인수에서 호스트 확인 (두 번째 인수)
         if (args.length > 1) {
             String host = args[1].trim();
             
             if (!host.isEmpty()) {
+                validateHost(host);
+                
                 // 보안 경고 표시
                 if ("0.0.0.0".equals(host)) {
                     System.out.println("모든 IP에서 접속 허용: " + host + " (보안 주의!)");
@@ -317,52 +292,55 @@ public class Main {
             }
         }
 
-        // 환경 변수에서 호스트 확인
-        String envHost = System.getenv("PLANP_HOST");
-        if (envHost != null && !envHost.trim().isEmpty()) {
-            String host = envHost.trim();
-            
-            // 보안 경고 표시
-            if ("0.0.0.0".equals(host)) {
-                System.out.println("모든 IP에서 접속 허용: " + host + " (보안 주의!)");
-            }
-            
-            System.out.println("환경변수 호스트 사용: " + host + " (PLANP_HOST)");
-            return host;
-        }
+        // EnvironmentConfig에서 호스트 가져오기 (환경변수 + 기본값 처리)
+        String envHost = EnvironmentConfig.getHost();
         
-        // 기본값 반환
-        System.out.println("기본 호스트 사용: " + DEFAULT_HOST + " (로컬 접속만)");
-        return DEFAULT_HOST;
+        // 환경변수와 기본값 구분해서 로깅
+        String hostSource = System.getenv("PLANP_HOST");
+        if (hostSource != null) {
+            if ("0.0.0.0".equals(envHost)) {
+                System.out.println("환경변수 호스트 - 모든 IP 허용: " + envHost + " (PLANP_HOST)");
+            } else {
+                System.out.println("환경변수 호스트 사용: " + envHost + " (PLANP_HOST)");
+            }
+        } else {
+            System.out.println("기본 호스트 사용: " + envHost + " (로컬 접속만)");
+        }
+
+        return envHost;
     }
 
     /**
-     * 현재 실행 환경 타입을 감지하는 메서드
+     * 포트 번호의 유효성을 검증한다.
      * <p>
-     * 환경변수나 시스템 속성을 기반으로 현재 실행 환경을 판단한다.
-     * 로깅 레벨, 보안 설정, 성능 최적화 등에 활용할 수 있다.
+     * 포트번호가 1-65535 범위를 넘어가면 예외를 던진다.
      * </p>
-     * 
-     * <h4>환경 감지 기준:</h4>
-     * <ul>
-     *   <li><code>PLANP_ENV=production</code> → 프로덕션</li>
-     *   <li><code>PLANP_ENV=test</code> → 테스트</li>
-     *   <li>기타 → 개발 환경</li>
-     * </ul>
-     * 
-     * @return 환경 타입 문자열 ("Development", "Test", "Production")
+     * @param port 검증할 포트번호
+     * @exception IllegalArgumentException
      */
-    private static String getEnvironmentType() {
-        String env = System.getenv("PLANP_ENV");
-        if (env == null) {
-            return "Development";
+    private static void validatePort(int port) {
+        if (port < 1 || port > 65535) {
+            throw new IllegalArgumentException("포트 번호는 1-65535 범위여야 합니다.: " + port);
         }
-        
-        return switch (env.toLowerCase()) {
-            case "production", "prod" -> "Production";
-            case "test", "testing" -> "Test";
-            default -> "Development";
-        };
+    }
+
+    /**
+     * 호스트 주소의 유효성을 검증한다.
+     * <p>
+     * 호스트 주소가 비어있거나 공백이 포함되어 있으면
+     * 예외를 던진다.
+     * </p>
+     * @param host 검증할 호스트 주소
+     * @exception IllegalArgumentException
+     */
+    private static void validateHost(String host) {
+        if (host == null || host.trim().isEmpty()) {
+            throw new IllegalArgumentException("호스트 주소가 비어있습니다.");
+        }
+
+        if (host.contains(" ")) {
+            throw new IllegalArgumentException("호스트 주소에 공백이 포함되어 있습니다.: " + host);
+        }
     }
 
     /**
