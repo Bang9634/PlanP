@@ -30,7 +30,7 @@ import com.drhong.util.PasswordUtil;
  * 
  */
 @SuppressWarnings("unused")
- @DisplayName("UserService 통합 테스트")
+@DisplayName("UserService 통합 테스트")
 class UserServiceTest {
 
     private UserService userService;
@@ -53,7 +53,7 @@ class UserServiceTest {
         void successfulSignup() {
             // Given
             SignupRequest request = new SignupRequest(
-                "testuser", "StrongPassword123!", "테스트사용자", "test@example.com", "010-1234-5678"
+                "testuser", "StrongPassword123!", "테스트사용자", "test@example.com"
             );
 
             // When
@@ -69,7 +69,6 @@ class UserServiceTest {
             assertThat(savedUser).isNotNull();
             assertThat(savedUser.getName()).isEqualTo("테스트사용자");
             assertThat(savedUser.getEmail()).isEqualTo("test@example.com");
-            assertThat(savedUser.getPhone()).isEqualTo("010-1234-5678");
             
             // 비밀번호가 암호화되었는지 확인
             assertThat(PasswordUtil.verify("StrongPassword123!", savedUser.getPassword())).isTrue();
@@ -80,13 +79,13 @@ class UserServiceTest {
         void duplicateUserId() {
             // Given - 먼저 사용자 등록
             SignupRequest firstRequest = new SignupRequest(
-                "duplicate", "StrongPassword123!", "첫번째사용자", "first@example.com", null
+                "duplicate", "StrongPassword123!", "첫번째사용자", "first@example.com"
             );
             userService.signup(firstRequest);
 
             // When - 같은 ID로 재등록 시도
             SignupRequest secondRequest = new SignupRequest(
-                "duplicate", "AnotherPassword456!", "두번째사용자", "second@example.com", null
+                "duplicate", "AnotherPassword456!", "두번째사용자", "second@example.com"
             );
             SignupResponse response = userService.signup(secondRequest);
 
@@ -100,13 +99,13 @@ class UserServiceTest {
         void duplicateEmail() {
             // Given - 먼저 사용자 등록
             SignupRequest firstRequest = new SignupRequest(
-                "user1", "StrongPassword123!", "첫번째사용자", "duplicate@example.com", null
+                "user1", "StrongPassword123!", "첫번째사용자", "duplicate@example.com"
             );
             userService.signup(firstRequest);
 
             // When - 같은 이메일로 재등록 시도
             SignupRequest secondRequest = new SignupRequest(
-                "user2", "AnotherPassword456!", "두번째사용자", "duplicate@example.com", null
+                "user2", "AnotherPassword456!", "두번째사용자", "duplicate@example.com"
             );
             SignupResponse response = userService.signup(secondRequest);
 
@@ -120,7 +119,7 @@ class UserServiceTest {
         void invalidInputData() {
             // Given - 잘못된 요청 데이터
             SignupRequest request = new SignupRequest(
-                "ab", "123", "", "invalid-email", null
+                "ab", "123", "", "invalid-email"
             );
 
             // When
@@ -147,7 +146,7 @@ class UserServiceTest {
         void weakPassword() {
             // Given - 약한 비밀번호
             SignupRequest request = new SignupRequest(
-                "testuser", "123123", "테스트사용자", "test@example.com", null
+                "testuser", "123123", "테스트사용자", "test@example.com"
             );
 
             // When
@@ -164,7 +163,7 @@ class UserServiceTest {
         void invalidUserIdLength(String userId) {
             // Given
             SignupRequest request = new SignupRequest(
-                userId, "StrongPassword123!", "테스트사용자", "test@example.com", null
+                userId, "StrongPassword123!", "테스트사용자", "test@example.com"
             );
 
             // When
@@ -180,7 +179,7 @@ class UserServiceTest {
         void invalidEmailFormat(String email) {
             // Given
             SignupRequest request = new SignupRequest(
-                "testuser", "StrongPassword123!", "테스트사용자", email, null
+                "testuser", "StrongPassword123!", "테스트사용자", email
             );
 
             // When
@@ -188,23 +187,6 @@ class UserServiceTest {
 
             // Then
             assertThat(response.isSuccess()).isFalse();
-        }
-
-        @ParameterizedTest
-        @ValueSource(strings = {"123-456", "010-1234", "not-a-phone"})
-        @DisplayName("잘못된 전화번호 형식 - 실패")
-        void invalidPhoneFormat(String phone) {
-            // Given
-            SignupRequest request = new SignupRequest(
-                "testuser", "StrongPassword123!", "테스트사용자", "test@example.com", phone
-            );
-
-            // When
-            SignupResponse response = userService.signup(request);
-
-            // Then
-            assertThat(response.isSuccess()).isFalse();
-            assertThat(response.getMessage()).contains("전화번호");
         }
     }
 
@@ -218,7 +200,7 @@ class UserServiceTest {
             // Given - 사용자 등록
             String password = "StrongPassword123!";
             SignupRequest signupRequest = new SignupRequest(
-                "loginuser", password, "로그인사용자", "login@example.com", null
+                "loginuser", password, "로그인사용자", "login@example.com"
             );
             userService.signup(signupRequest);
 
@@ -234,7 +216,7 @@ class UserServiceTest {
         void wrongPassword() {
             // Given - 사용자 등록
             SignupRequest signupRequest = new SignupRequest(
-                "loginuser", "StrongPassword123!", "로그인사용자", "login@example.com", null
+                "loginuser", "StrongPassword123!", "로그인사용자", "login@example.com"
             );
             userService.signup(signupRequest);
 
@@ -289,7 +271,7 @@ class UserServiceTest {
             String oldPassword = "OldPassword123!";
             String newPassword = "NewPassword456!";
             SignupRequest signupRequest = new SignupRequest(
-                "changeuser", oldPassword, "변경사용자", "change@example.com", null
+                "changeuser", oldPassword, "변경사용자", "change@example.com"
             );
             userService.signup(signupRequest);
 
@@ -309,7 +291,7 @@ class UserServiceTest {
         void wrongOldPassword() {
             // Given - 사용자 등록
             SignupRequest signupRequest = new SignupRequest(
-                "changeuser", "CorrectPassword123!", "변경사용자", "change@example.com", null
+                "changeuser", "CorrectPassword123!", "변경사용자", "change@example.com"
             );
             userService.signup(signupRequest);
 
@@ -346,7 +328,7 @@ class UserServiceTest {
         void unavailableUserId() {
             // Given - 사용자 등록
             SignupRequest request = new SignupRequest(
-                "existinguser", "StrongPassword123!", "기존사용자", "existing@example.com", null
+                "existinguser", "StrongPassword123!", "기존사용자", "existing@example.com"
             );
             userService.signup(request);
 
@@ -365,7 +347,7 @@ class UserServiceTest {
         void unavailableEmail() {
             // Given - 사용자 등록
             SignupRequest request = new SignupRequest(
-                "user", "StrongPassword123!", "사용자", "existing@example.com", null
+                "user", "StrongPassword123!", "사용자", "existing@example.com"
             );
             userService.signup(request);
 
@@ -399,7 +381,7 @@ class UserServiceTest {
         void getUserById() {
             // Given - 사용자 등록
             SignupRequest request = new SignupRequest(
-                "findme", "StrongPassword123!", "찾을사용자", "find@example.com", null
+                "findme", "StrongPassword123!", "찾을사용자", "find@example.com"
             );
             userService.signup(request);
 
@@ -424,7 +406,7 @@ class UserServiceTest {
         void getUserByEmail() {
             // Given - 사용자 등록
             SignupRequest request = new SignupRequest(
-                "emailuser", "StrongPassword123!", "이메일사용자", "email@example.com", null
+                "emailuser", "StrongPassword123!", "이메일사용자", "email@example.com"
             );
             userService.signup(request);
 
@@ -485,9 +467,9 @@ class UserServiceTest {
         void multipleSignups() {
             // Given - 여러 회원가입 요청
             SignupRequest[] requests = {
-                new SignupRequest("user1", "StrongPassword123!", "사용자1", "user1@example.com", null),
-                new SignupRequest("user2", "StrongPassword456!", "사용자2", "user2@example.com", "010-2222-2222"),
-                new SignupRequest("user3", "StrongPassword789!", "사용자3", "user3@example.com", null)
+                new SignupRequest("user1", "StrongPassword123!", "사용자1", "user1@example.com"),
+                new SignupRequest("user2", "StrongPassword456!", "사용자2", "user2@example.com"),
+                new SignupRequest("user3", "StrongPassword789!", "사용자3", "user3@example.com")
             };
 
             // When & Then - 모든 회원가입이 성공해야 함
@@ -513,8 +495,7 @@ class UserServiceTest {
                     "bulkuser" + i, 
                     "StrongPassword123!", 
                     "대량사용자" + i, 
-                    "bulkuser" + i + "@example.com",
-                    null
+                    "bulkuser" + i + "@example.com"
                 );
                 userService.signup(request);
             }
@@ -533,7 +514,7 @@ class UserServiceTest {
         void signupThenDuplicateCheck() {
             // Given - 회원가입
             SignupRequest request = new SignupRequest(
-                "testuser", "StrongPassword123!", "테스트", "test@example.com", null
+                "testuser", "StrongPassword123!", "테스트", "test@example.com"
             );
             userService.signup(request);
 
@@ -557,7 +538,7 @@ class UserServiceTest {
             // Given
             String plainPassword = "MySecretPassword123!";
             SignupRequest request = new SignupRequest(
-                "secureuser", plainPassword, "보안사용자", "secure@example.com", null
+                "secureuser", plainPassword, "보안사용자", "secure@example.com"
             );
 
             // When
@@ -574,7 +555,7 @@ class UserServiceTest {
         void userDataIntegrityAfterModification() {
             // Given - 사용자 등록
             SignupRequest request = new SignupRequest(
-                "modifyuser", "OriginalPassword123!", "원본사용자", "original@example.com", null
+                "modifyuser", "OriginalPassword123!", "원본사용자", "original@example.com"
             );
             userService.signup(request);
 
@@ -602,7 +583,7 @@ class UserServiceTest {
         void safeResponseOnException() {
             // Given - 극단적인 케이스
             SignupRequest request = new SignupRequest(
-                "extremecase", "password", null, "test@example.com", null
+                "extremecase", "password", null, "test@example.com"
             );
 
             // When
@@ -619,7 +600,7 @@ class UserServiceTest {
             // Given - 매우 긴 문자열
             String longString = "a".repeat(1000);
             SignupRequest request = new SignupRequest(
-                "shortid", "StrongPassword123!", longString, "test@example.com", null
+                "shortid", "StrongPassword123!", longString, "test@example.com"
             );
 
             // When
