@@ -14,11 +14,11 @@ import com.sun.net.httpserver.HttpExchange;
 /**
  * CORS(Cross-Origin Resource Sharing) 정책을 처리하는 HTTP 필터
  * <p>
- * 모든 HTTP 요청에 대해 CORS 헤더를 자동으로 추가하여 브라우저의
+ * 모든 HTTP 요청에 대해 CORS 헤더를 자동으로 추가하여 브라우저의 
  * 동일 출처 정책(Same-Origin Policy)으로 인한 차단을 방지한다.
  * 특히 프론트엔드가 다른 포트(localhost:3000)에서 실행될 때 필수적이다.
  * </p>
- *
+ * 
  * <h3>주요 기능:</h3>
  * <ul>
  *   <li>허용된 Origin 검증 및 CORS 헤더 설정</li>
@@ -26,7 +26,7 @@ import com.sun.net.httpserver.HttpExchange;
  *   <li>개발/프로덕션 환경별 CORS 정책 적용</li>
  *   <li>CORS 관련 요청 로깅 및 모니터링</li>
  * </ul>
- *
+ * 
  * <h3>처리하는 CORS 헤더:</h3>
  * <ul>
  *   <li><code>Access-Control-Allow-Origin</code> - 허용된 출처 설정</li>
@@ -38,9 +38,9 @@ import com.sun.net.httpserver.HttpExchange;
  * 
  * @author bang9634
  * @since 2025-11-10
- *
+ * 
  * @see com.drhong.server.PlanPServer
- *
+ * 
  * @implNote HttpServer의 Filter 체인에서 가장 먼저 실행되도록 설정해야 함
  */
 public class CorsFilter extends Filter {
@@ -62,7 +62,7 @@ public class CorsFilter extends Filter {
      * 모든 HTTP 요청에 대해 실행되며, CORS 헤더를 설정하고 
      * OPTIONS 요청은 바로 처리한다. 다른 요청들은 다음 핸들러로 전달한다.
      * </p>
-     *
+     * 
      * <h4>처리 과정:</h4>
      * <ol>
      *   <li>요청 정보(Origin, Method, Path) 추출 및 로깅</li>
@@ -70,11 +70,11 @@ public class CorsFilter extends Filter {
      *   <li>OPTIONS 요청인 경우 즉시 200 응답 반환</li>
      *   <li>다른 요청은 다음 필터/핸들러로 전달</li>
      * </ol>
-     *
+     * 
      * @param exchange HTTP 요청/응답 교환 객체
      * @param chain 다음 필터나 핸들러로 요청을 전달하는 체인
      * @throws IOException HTTP 처리 중 I/O 오류가 발생한 경우
-     *
+     * 
      * @implNote OPTIONS 요청은 실제 요청 전에 브라우저가 보내는 Preflight 요청
      */
     @Override
@@ -110,14 +110,18 @@ public class CorsFilter extends Filter {
      * 개발 환경에서는 와일드카드(*)을 사용하고, 
      * 허용되지 않은 Origin에 대해서는 null을 설정한다.
      * </p>
-     *
+     * 
      * <h4>Origin 검증 로직:</h4>
+     * <ul>
+     *   <li><strong>허용된 Origin:</strong> 정확한 Origin 설정</li>
+     *   <li><strong>개발환경:</strong> 와일드카드(*) 사용</li>
+     *   <li><strong>허용되지 않는 Origin:</strong> null 설정</li>
      * </ul>
-     *
+     * 
      * @param exchange HTTP 요청/응답 교환 객체
-     *
-     * @apiNote 프로덕션 환경에서는 반드시 환경변수를 통해 CORS_ALLOWED_ORIGINS을 설정할 것
-     * @see ConfigUtil#getCorsAllowedOrigins()
+     * @param origin 요청의 Origin 헤더 값 (null 가능)
+     * 
+     * @apiNote 프로덕션 환경에서는 허용할 도메인을 명시적으로 관리하는 것이 보안상 더 안전
      */
     private void setCorsHeaders(HttpExchange exchange, String origin) {
         // 환경변수 기반 Origin 검증
