@@ -65,6 +65,9 @@
     </dependencies>
 
     <build>
+
+        <finalName>planp-backend</finalName>
+
         <plugins>
             <!-- Maven Compiler Plugin -->
             <plugin>
