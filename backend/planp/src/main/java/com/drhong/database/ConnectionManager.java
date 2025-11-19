@@ -70,7 +70,6 @@ import com.drhong.config.DatabaseConfig;
  *       └─ 모든 연결 닫기
  * </pre>
  * 
- * 
  * <h3>주의사항</h3>
  * <ul>
  *   <li>getConnection() 후 반드시 releaseConnection() 호출 필수</li>
@@ -102,7 +101,6 @@ public class ConnectionManager {
 
     /**
      * 사용 가능한(대기 중인) 연결 목록
-     * 
      * <p>
      * 현재 사용되지 않고 있어서 즉시 할당 가능한 Connection들을 보관한다.
      * getConnection() 호출 시 여기서 꺼내서 usedConnections로 이동한다.
@@ -112,7 +110,6 @@ public class ConnectionManager {
 
     /**
      * 현재 사용 중인 연결 목록
-     * 
      * <p>
      * 애플리케이션에서 현재 사용하고 있는 Connection들을 추적한다.
      * releaseConnection() 호출 시 availableConnections로 돌아간다.
@@ -122,7 +119,6 @@ public class ConnectionManager {
     
     /**
      * 초기 Connection Pool 크기
-     * 
      * <p>
      * 애플리케이션 시작 시 미리 생성하는 연결의 개수.
      * 대부분의 요청을 처리하기에 충분한 기본값이다.
@@ -132,7 +128,6 @@ public class ConnectionManager {
 
     /**
      * 최대 Connection Pool 크기
-     * 
      * <p>
      * 동시에 유지할 수 있는 최대 연결 개수.
      * 이 값을 초과하면 SQLException이 발생한다.

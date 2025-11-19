@@ -15,9 +15,6 @@ import com.drhong.model.User;
  * 사용자 데이터 접근 객체 (Data Access Object)
  * <p>
  * 사용자 정보의 저장, 조회, 수정, 삭제 등 데이터베이스 관련 작업을 담당하는 DAO 클래스이다.
- * MySQL 데이터베이스와 연동하여 JDBC를 통해 데이터를 관리한다.
- * 데이터베이스 연결 정보는 환경변수를 통해 동적으로 로드되므로
- * 개발, 테스트, 운영 환경에 맞게 유연하게 설정할 수 있다.
  * </p>
  *
  * <h3>주요 기능:</h3>
@@ -27,22 +24,10 @@ import com.drhong.model.User;
  *   <li>중복 확인 (ID, 이메일)</li>
  *   <li>사용자 데이터 관리 (삭제, 전체 조회)</li>
  * </ul>
- *
- * <h3>환경변수 설정:</h3>
- * <pre>{@code
- * export DB_HOST="49.50.133.229"
- * export DB_PORT="3306"
- * export DB_NAME="planp_db"
- * export DB_USER="planp_user"
- * export DB_PASSWORD="your_password"
- * 
- * // 또는 Java 시스템 속성
- * java -Ddb.host=49.50.133.229 -Ddb.port=3306 -Ddb.name=planp_db App
  * }</pre>
  *
  * @author bang9634
  * @since 2025-11-10
- * @implNote MySQL 데이터베이스 연동 - 환경변수를 통해 연결 정보 관리
  * 
  * @see com.drhong.util.ConfigUtil
  */
@@ -61,8 +46,6 @@ public class UserDAO {
      * 새로운 사용자 정보를 저장하는 메서드
      * <p>
      * 주어진 사용자 객체를 데이터베이스 users 테이블에 INSERT한다.
-     * SQL Injection 방지를 위해 PreparedStatement를 사용하여
-     * 매개변수를 안전하게 설정한다.
      * </p>
      * @author wnwoghd
      * 
@@ -73,7 +56,6 @@ public class UserDAO {
      * @throws IllegalArgumentException user의 필수 필드가 누락된 경우
      *
      * @apiNote 데이터베이스의 트랜잭션이 자동으로 처리됨
-     * @see java.sql.PreparedStatement
      */
     public boolean save(User user) {
         if (user == null) {

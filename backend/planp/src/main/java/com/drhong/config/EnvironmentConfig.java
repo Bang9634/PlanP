@@ -4,28 +4,22 @@ package com.drhong.config;
  * PlanP 백엔드 애플리케이션 환경설정 통합 관리 클래스
  * <p>
  * 서버 실행 환경 및 기본 설정을 관리하고, 환경변수를 읽는 공통 메서드를 제공한다.
- * 개발, 테스트, 프로덕션 환경에서 각각 다른 설정값을 자동으로 적용하며,
- * 환경변수와 기본값을 체계적으로 관리해 배포 환경에 관계없이 일관된 동작을 보장한다.
  * </p>
  * 
  * <h3>관리하는 설정:</h3>
  * <ul>
- *   <li>실행 환경 (development/testing/production)</li>
  *   <li>HTTP 서버 설정 (호스트, 포트)</li>
  *   <li>CORS 정책 (허용 오리진)</li>
  * </ul>
  * 
- * 
- *  * <h3>설정 우선순위:</h3>
+ * <h3>설정 우선순위:</h3>
  * <ol>
  *   <li>시스템 환경변수 (최고 우선순위)</li>
- *   <li>환경별 기본값 (PLANP_ENV에 따라 결정)</li>
  *   <li>전역 기본값 (환경변수가 없을 때 사용)</li>
  * </ol>
  * 
  * <h3>지원하는 환경변수:</h3>
  * <ul>
- *   <li><code>PLANP_ENV</code> - 실행 환경 (development/testing/production)</li>
  *   <li><code>PLANP_HOST</code> - 서버 바인딩 호스트</li>
  *   <li><code>PLANP_PORT</code> - 서버 포트 번호</li>
  *   <li><code>PLANP_ALLOWED_ORIGINS</code> - CORS 허용 오리진 (쉼표로 구분)</li>
@@ -40,65 +34,6 @@ package com.drhong.config;
  * @implNote 모든 메서드는 static으로 구현되어 인스턴스 생성없이 사용 가능
  */
 public class EnvironmentConfig {
-    
-    /**
-     * 애플리케이션 실행 환경을 나타내는 열거형
-     * <p>
-     * 각 환경별로 다른 기본값과 정책을 적용하여 
-     * 일관된 설정 관리를 지원한다.
-     * </p>
-     * 
-     * <ul>
-     *   <li><strong>DEVELOPMENT:</strong> 로컬 개발용 - 관대한 보안정책, 상세한 로깅</li>
-     *   <li><strong>TESTING:</strong> 테스트용 - 별도 DB, 디버그 로깅</li>
-     *   <li><strong>PRODUCTION:</strong> 운영용 - 엄격한 보안정책, 최소한의 로깅</li>
-     * </ul>
-     */
-    public enum Environment {
-        /** 개발 환경 - localhost 기반 */
-        DEVELOPMENT, 
-        /** 테스트 환경 - 별도 테스트 DB */
-        TESTING, 
-        /** 프로덕션 환경 - 운영 DB */
-        PRODUCTION
-    }
-    
-    /**
-     * 현재 애플리케이션이 실행되고 있는 환경을 반환한다.
-     * <p>
-     * PLANP_ENV 환경변수 값을 기반으로 실행 환경을 결정한다.
-     * 환경변수가 설정되지 않았거나 잘못된 값인 경우 개발 환경으로 기본 설정된다.
-     * </p>
-     * 
-     * <h4>환경변수 값과 매핑:</h4>
-     * <ul>
-     *   <li><code>"production"</code> → {@link Environment#PRODUCTION}</li>
-     *   <li><code>"testing"</code> → {@link Environment#TESTING}</li>
-     *   <li>기타 모든 값 → {@link Environment#DEVELOPMENT}</li>
-     * </ul>
-     * 
-     * <h4>사용 예시:</h4>
-     * <pre>{@code
-     * Environment env = EnvironmentConfig.getCurrentEnvironment();
-     * switch (env) {
-     *     case PRODUCTION -> setupProductionLogging();
-     *     case TESTING -> setupTestDatabase();
-     *     default -> enableDebugMode();
-     * }
-     * }</pre>
-     * 
-     * @return 현재 실행 환경 (기본값: {@link Environment#DEVELOPMENT})
-     * 
-     * @implNote 환경변수 검사는 대소문자를 구분하지 않음
-     */
-    public static Environment getCurrentEnvironment() {
-        String env = getEnvValue("PLANP_ENV", "development");
-        return switch (env.toLowerCase()) {
-            case "production" -> Environment.PRODUCTION;
-            case "testing" -> Environment.TESTING;
-            default -> Environment.DEVELOPMENT;
-        };
-    }
     
     /**
      * HTTP 서버가 바인딩할 호스트 주소를 반환한다.
@@ -166,7 +101,6 @@ public class EnvironmentConfig {
      *   <li><code>http://localhost:3000</code> - 개발 환경 프론트엔드</li>
      *   <li><code>https://example.com</code> - 프로덕션 도메인</li>
      *   <li><code>http://192.168.1.100:8080</code> - 특정 IP와 포트</li>
-     *   <li><code>*</code> - 모든 오리진 허용 (개발 전용, 보안 위험)</li>
      * </ul>
      * 
      * <h4>설정 예시:</h4>
@@ -181,11 +115,6 @@ public class EnvironmentConfig {
      * }
      * }</pre>
      * 
-     * <h4>보안 고려사항:</h4>
-     * <p>
-     * 와일드카드(*)는 개발 환경에서만 사용하고, 프로덕션에서는
-     * 실제 필요한 도메인만 명시적으로 허용하는 것이 보안상 안전하다.
-     * </p>
      * 
      * @return 허용할 오리진 배열 (기본값: ["http://localhost:3000"])
      * 
@@ -212,7 +141,6 @@ public class EnvironmentConfig {
      * 
      * <h4>사용 예시:</h4>
      * <pre>{@code
-     * // 내부에서만 사용되는 헬퍼 메서드
      * String host = getEnvValue("PLANP_HOST", "localhost");
      * String port = getEnvValue("PLANP_PORT", "8080");
      * String database = getEnvValue("MYSQL_DATABASE", "planp_db");
@@ -236,29 +164,18 @@ public class EnvironmentConfig {
      * 
      * <h4>출력되는 정보:</h4>
      * <ul>
-     *   <li>현재 실행 환경 (development/testing/production)</li>
      *   <li>서버 호스트 및 포트</li>
      *   <li>CORS 허용 오리진 목록</li>
-     *   <li>MySQL 연결 정보 (호스트, 포트, 데이터베이스명, 사용자명)</li>
      * </ul>
      * 
      * <h4>출력 예시:</h4>
      * <pre>
      * === PlanP 환경 설정 ===
-     * 환경: DEVELOPMENT
      * 호스트: localhost
      * 포트: 8080
      * 허용 오리진: http://localhost:3000
-     * DB 호스트: localhost:3306
-     * DB 이름: planp_development
-     * DB 사용자: root
      * ====================
      * </pre>
-     * 
-     * <h4>주의사항:</h4>
-     * <p>
-     * 보안상 데이터베이스 비밀번호는 출력하지 않는다.
-     * </p>
      * 
      * @apiNote 서버 시작 시 Main 클래스에서 호출되어 설정 확인용으로 사용
      * 
@@ -266,7 +183,6 @@ public class EnvironmentConfig {
      */
     public static void printConfig() {
         System.out.println("=== PlanP 환경 설정 ===");
-        System.out.println("환경: " + getCurrentEnvironment());
         System.out.println("호스트: " + getHost());
         System.out.println("포트: " + getPort());
         System.out.println("허용 오리진: " + String.join(", ", getAllowedOrigins()));

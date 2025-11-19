@@ -45,14 +45,6 @@ import com.sun.net.httpserver.HttpHandler;
  * }
  * }</pre>
  * 
- * <h3>사용 사례:</h3>
- * <ul>
- *   <li><strong>로드 밸런서:</strong> 서버 인스턴스 상태 확인</li>
- *   <li><strong>모니터링 시스템:</strong> 주기적 헬스 체크</li>
- *   <li><strong>배포 검증:</strong> 새 버전 배포 후 상태 확인</li>
- *   <li><strong>개발/디버깅:</strong> 서버 정보 빠른 확인</li>
- * </ul>
- * 
  * @author bang9634
  * @since 2025-11-10
  * 

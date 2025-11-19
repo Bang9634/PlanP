@@ -260,10 +260,9 @@ public class CorsHandler implements HttpHandler {
     }
 
     /**
-     * 주어진 Origin이 로컬 개발 환경의 요청인지 확인하는 헬퍼 메서드
+     * 주어진 Origin이 로컬 환경의 요청인지 확인하는 헬퍼 메서드
      * <p>
      * localhost와 127.0.0.1로 시작하는 Origin들을 로컬 요청으로 판단한다.
-     * 개발 환경에서 주로 사용되는 패턴들을 허용한다.
      * </p>
      * 
      * @param origin 검증할 Origin 문자열

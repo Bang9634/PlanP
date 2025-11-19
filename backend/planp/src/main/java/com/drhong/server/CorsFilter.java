@@ -23,7 +23,6 @@ import com.sun.net.httpserver.HttpExchange;
  * <ul>
  *   <li>허용된 Origin 검증 및 CORS 헤더 설정</li>
  *   <li>Preflight 요청(OPTIONS) 자동 처리</li>
- *   <li>개발/프로덕션 환경별 CORS 정책 적용</li>
  *   <li>CORS 관련 요청 로깅 및 모니터링</li>
  * </ul>
  * 
@@ -107,21 +106,17 @@ public class CorsFilter extends Filter {
      * <p>
      * 요청의 Origin을 검증하여 적절한 CORS 헤더를 설정한다.
      * 허용된 Origin의 경우 정확한 Origin을 설정하고,
-     * 개발 환경에서는 와일드카드(*)을 사용하고, 
      * 허용되지 않은 Origin에 대해서는 null을 설정한다.
      * </p>
      * 
      * <h4>Origin 검증 로직:</h4>
      * <ul>
      *   <li><strong>허용된 Origin:</strong> 정확한 Origin 설정</li>
-     *   <li><strong>개발환경:</strong> 와일드카드(*) 사용</li>
      *   <li><strong>허용되지 않는 Origin:</strong> null 설정</li>
      * </ul>
      * 
      * @param exchange HTTP 요청/응답 교환 객체
      * @param origin 요청의 Origin 헤더 값 (null 가능)
-     * 
-     * @apiNote 프로덕션 환경에서는 허용할 도메인을 명시적으로 관리하는 것이 보안상 더 안전
      */
     private void setCorsHeaders(HttpExchange exchange, String origin) {
         // 환경변수 기반 Origin 검증
@@ -129,12 +124,8 @@ public class CorsFilter extends Filter {
             // 허용된 Origin인 경우 정확한 Origin 값 설정
             exchange.getResponseHeaders().set("Access-Control-Allow-Origin", origin);
             logger.debug("허용된 Origin 설정: {}", origin);
-        } else if (EnvironmentConfig.getCurrentEnvironment() == EnvironmentConfig.Environment.DEVELOPMENT) {
-            // 개발 환경에서는 모든 오리진 허용
-            exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
-            logger.debug("개발환경 - 와일드카드 Origin 설정");
         } else {
-            // 프로덕션에서는 허용되지 않는 Origin 차단
+            // 허용되지 않는 Origin 차단
             exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "null");
             logger.warn("허용되지 않은 Origin 요청: {}", origin);
         }

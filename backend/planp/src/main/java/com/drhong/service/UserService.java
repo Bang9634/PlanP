@@ -32,7 +32,7 @@ import com.drhong.validator.SignupValidator;
  * <h3>보안 정책:</h3>
  * <ul>
  *   <li>모든 비밀번호는 bcrypt 해싱으로 암호화</li>
- *   <li>비밀번호 강도 검증 (최소 40점 이상)</li>
+ *   <li>비밀번호 강도 검증 </li>
  *   <li>사용자 ID와 이메일 유일성 보장</li>
  *   <li>입력값 유효성 검증을 통한 보안 강화</li>
  * </ul>

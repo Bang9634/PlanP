@@ -30,7 +30,6 @@ import com.drhong.config.DatabaseConfig;
  *   <li>데이터베이스 존재 확인 및 생성 (utf8mb4 인코딩)</li>
  *   <li>users 테이블 생성 (이미 있으면 스킵)</li>
  *   <li>인덱스 생성 (email, username 조회 최적화)</li>
- *   <li>개발 환경인 경우 테스트 데이터 삽입</li>
  * </ol>
  * 
  * <h3>생성되는 테이블</h3>

@@ -15,7 +15,6 @@ import com.drhong.service.UserService;
  * <p>
  * 이 클래스는 PlanP 백엔드 서버의 시작점 역할을 담당한다.
  * 시스템 초기화, 설정 로딩, 서버 생성 및 시작을 관리하며,
- * 다양한 환경(개발, 테스트, 프로덕션)에서의 실행을 지원한다.
  * </p>
  * 
  * <h3>주요 기능:</h3>
@@ -23,7 +22,6 @@ import com.drhong.service.UserService;
  *   <li>커맨드라인 인수 및 환경변수를 통한 설정 관리</li>
  *   <li>HTTP 서버 초기화 및 의존성 주입</li>
  *   <li>Graceful 서버 시작 및 오류 처리</li>
- *   <li>개발/프로덕션 환경별 설정 적용</li>
  * </ul>
  * 
  * <h3>실행 방법:</h3>
@@ -151,12 +149,11 @@ public class Main {
             String host = getHostFromArgs(args);
             int port = getPortFromArgs(args);
 
-            logger.info("서버 시작: {}:{} (환경: {})", host, port, EnvironmentConfig.getCurrentEnvironment());
+            logger.info("서버 시작: {}:{}", host, port);
             
             System.out.printf("서버 설정:\n");
             System.out.printf("├─ 호스트: %s\n", host);
             System.out.printf("├─ 포트: %d\n", port);
-            System.out.printf("├─ 환경: %s\n", EnvironmentConfig.getCurrentEnvironment());
             System.out.printf("└─  허용 오리진: %s\n", String.join(", ", EnvironmentConfig.getAllowedOrigins()));
             
             // DB 초기화

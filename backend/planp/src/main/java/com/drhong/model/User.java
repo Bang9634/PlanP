@@ -27,6 +27,7 @@ public class User {
      * 계정 생성 날짜를 현재 로컬 시간으로 초기화한다.
      * 계정 활성화 여부를 true로 설정한다.
      * </p>
+     * TODO: 데이터베이스에 삽입할 때 MySQL에서 자동으로 현재 시간으로 저장함. 중복되는데 이거 어케할지 생각좀
      */
     public User() {
         this.createdAt = LocalDateTime.now();
