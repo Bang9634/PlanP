@@ -65,8 +65,13 @@ public class DatabaseInitializer {
      * @implNote DatabaseConfig는 환경변수(MYSQL_*)를 우선 사용
      * @see DatabaseConfig
      */
+    @Deprecated
     public DatabaseInitializer() {
         this.databaseConfig = new DatabaseConfig();
+    }
+
+    public DatabaseInitializer(DatabaseConfig databaseConfig) {
+        this.databaseConfig = databaseConfig;
     }
 
 

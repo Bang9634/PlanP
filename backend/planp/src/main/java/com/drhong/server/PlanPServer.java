@@ -2,11 +2,14 @@ package com.drhong.server;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.Executors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.drhong.config.EnvironmentConfig;
 import com.drhong.controller.UserController;
 import com.drhong.service.UserService;
 import com.sun.net.httpserver.HttpContext;
@@ -87,6 +90,9 @@ public class PlanPServer {
     
     /** 서버 종료 시 대기 시간 (초) */
     private static final int SHUTDOWN_DELAY_SECONDS = 3;
+
+    /** 허용된 오리진 규칙 리스트 */
+    private final List<String>allowedOrigins;
     
     /**
      * PlanPServer 생성자
@@ -115,7 +121,7 @@ public class PlanPServer {
     public PlanPServer(String host, int port, UserService userService) throws IOException {
         this.host = host;
         this.port = port;
-        
+        this.allowedOrigins = Arrays.asList(EnvironmentConfig.getAllowedOrigins());
         logger.info("PlanP 서버 초기화 시작: {}:{}", host, port);
         
         // HTTP 서버 생성 (백로그 큐 크기는 기본값 0 사용)
@@ -164,7 +170,7 @@ public class PlanPServer {
         logger.info("API 라우트 설정 시작...");
         
         // CORS 필터 인스턴스 생성 (모든 API에서 재사용)
-        CorsFilter corsFilter = new CorsFilter();
+        CorsFilter corsFilter = new CorsFilter(allowedOrigins);
         
         // 헬스 체크 API - 서버 상태 모니터링용
         HttpContext healthContext = server.createContext("/health", new HealthCheckHandler());

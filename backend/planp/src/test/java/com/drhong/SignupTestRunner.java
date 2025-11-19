@@ -1,18 +1,43 @@
 package com.drhong;
 
+import java.sql.SQLException;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.drhong.config.TestDatabaseConfig;
+import com.drhong.dao.UserDAO;
+import com.drhong.database.ConnectionManager;
+import com.drhong.database.QueryExecutor;
 import com.drhong.dto.SignupRequest;
 import com.drhong.dto.SignupResponse;
 import com.drhong.service.UserService;
-
+import com.drhong.util.TestDatabaseHelper;
 /**
  * 회원가입 로직 테스트 실행기
  */
 public class SignupTestRunner {
+    private static final Logger logger = LoggerFactory.getLogger(SignupTestRunner.class);
+
+    private static TestDatabaseConfig databaseConfig;
+    private static ConnectionManager connectionManager;
+    private static QueryExecutor queryExecutor;
+    private static UserDAO userDAO;
+    private static UserService userService;
 
     public static void main(String[] args) {
         System.out.println("=== 회원가입 로직 테스트 시작 ===\n");
+        try {
+        databaseConfig = new TestDatabaseConfig();
+        connectionManager = ConnectionManager.resetInstance(databaseConfig);
+        queryExecutor = new QueryExecutor(connectionManager);
+        userDAO = new UserDAO(queryExecutor);
+        userService = new UserService(userDAO);
+        } catch (SQLException e) {
+            logger.warn("SQLException 발생: {}", e);
+        }
+        TestDatabaseHelper.initializeTestDatabase();
 
-        UserService userService = new UserService();
 
         // 테스트 1: 정상 회원가입
         System.out.println("1. 정상 회원가입 테스트");
@@ -34,6 +59,7 @@ public class SignupTestRunner {
         System.out.println("\n5. 중복 확인 기능 테스트");
         testDuplicateCheck(userService);
 
+        TestDatabaseHelper.cleanDatabase();
         System.out.println("\n=== 회원가입 로직 테스트 완료 ===");
     }
 

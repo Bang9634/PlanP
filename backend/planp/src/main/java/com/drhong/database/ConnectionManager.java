@@ -162,6 +162,31 @@ public class ConnectionManager {
         initializePool();
     }
 
+    /**
+     * 의존성 주입 생성자 (테스트용)
+     * 
+     * <p>
+     * 싱글톤을 사용하지 않고 직접 인스턴스를 생성한다.
+     * 테스트에서 H2 같은 다른 DB를 사용할 때 유용하다.
+     * </p>
+     * 
+     * <pre>{@code
+     * // 테스트 예시
+     * TestDatabaseConfig testConfig = new TestDatabaseConfig();
+     * ConnectionManager testManager = new ConnectionManager(testConfig);
+     * QueryExecutor executor = new QueryExecutor(testManager);
+     * }</pre>
+     * 
+     * @param databaseConfig 데이터베이스 설정
+     */
+    private ConnectionManager(DatabaseConfig databaseConfig) {
+        this.databaseConfig = databaseConfig;
+        this.availableConnections = new ArrayList<>(INITIAL_POOL_SIZE);
+        this.usedConnections = new ArrayList<>();
+        
+        initializePool();
+    }
+
 
     /**
      * ConnectionManager의 싱글톤 인스턴스를 반환한다.
@@ -198,6 +223,50 @@ public class ConnectionManager {
         if (instance == null) {
             instance = new ConnectionManager();
         }
+        return instance;
+    }
+    /**
+     * 싱글톤 인스턴스를 특정 설정으로 초기화한다 (프로덕션용)
+     * 
+     * <p>
+     * 첫 번째 호출에서만 설정이 적용된다.
+     * 이미 초기화된 경우 기존 인스턴스를 반환하며 설정은 무시된다.
+     * </p>
+     * 
+     * @param databaseConfig 데이터베이스 설정
+     * @return 싱글톤 ConnectionManager 인스턴스
+     */
+    public static synchronized ConnectionManager getInstance(DatabaseConfig databaseConfig) {
+        if (instance == null) {
+            logger.info("싱글톤 ConnectionManager 생성 (커스텀 설정)");
+            instance = new ConnectionManager(databaseConfig);
+        } else {
+            logger.warn("ConnectionManager가 이미 초기화됨. 기존 인스턴스 반환");
+        }
+        return instance;
+    }
+
+     /**
+     * 싱글톤 인스턴스를 재설정한다 (테스트/재시작용)
+     * 
+     * <p>
+     * 기존 싱글톤 인스턴스를 종료하고 새로운 설정으로 재생성한다.
+     * 주의: 프로덕션에서는 사용하지 말 것!
+     * </p>
+     * 
+     * @param databaseConfig 새 데이터베이스 설정
+     * @return 새로운 싱글톤 인스턴스
+     * @throws SQLException 기존 인스턴스 종료 실패 시
+     */
+    public static synchronized ConnectionManager resetInstance(DatabaseConfig databaseConfig) 
+            throws SQLException {
+        if (instance != null) {
+            logger.info("기존 싱글톤 인스턴스 종료");
+            instance.shutdown();
+            instance = null;
+        }
+        logger.info("새 싱글톤 인스턴스 생성");
+        instance = new ConnectionManager(databaseConfig);
         return instance;
     }
 

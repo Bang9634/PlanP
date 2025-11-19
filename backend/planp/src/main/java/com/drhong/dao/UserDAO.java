@@ -37,9 +37,9 @@ public class UserDAO {
     private static final Logger logger = LoggerFactory.getLogger(UserDAO.class);
     
     private final QueryExecutor queryExecutor;
-    
-    public UserDAO() {
-        this.queryExecutor = new QueryExecutor();
+
+    public UserDAO(QueryExecutor queryExecutor) {
+        this.queryExecutor = queryExecutor;
     }
 
     /**

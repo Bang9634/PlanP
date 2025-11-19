@@ -50,8 +50,14 @@ public class CorsFilter extends Filter {
     /** 환경변수 기반 허용 오리진 목록 */
     private final List<String> allowedOrigins;
 
+    @Deprecated
     public CorsFilter() {
         this.allowedOrigins = Arrays.asList(EnvironmentConfig.getAllowedOrigins());
+        logger.info("Cors 허용 오리진 목록: {}", allowedOrigins);
+    }
+
+    public CorsFilter(List<String> allowedOrigins) {
+        this.allowedOrigins = allowedOrigins;
         logger.info("Cors 허용 오리진 목록: {}", allowedOrigins);
     }
 

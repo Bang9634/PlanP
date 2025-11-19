@@ -27,6 +27,7 @@
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
             <version>5.10.2</version>
+            <scope>test</scope>
         </dependency>
 
         <!-- JSON 처리용 Gson 의존성 추가 -->
@@ -48,6 +49,29 @@
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>
             <version>3.24.2</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- H2 Database (인메모리 테스트 DB) -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <version>2.2.224</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Mockito (Mock 객체 생성용) -->
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>5.5.0</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-junit-jupiter</artifactId>
+            <version>5.5.0</version>
             <scope>test</scope>
         </dependency>
 

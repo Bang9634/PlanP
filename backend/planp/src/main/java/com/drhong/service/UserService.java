@@ -74,18 +74,6 @@ public class UserService {
     private static final int MIN_PASSWORD_STRENGTH = 40;
 
     /**
-     * 기본 생성자
-     * <p>
-     * 기본 UserDAO 인스턴스를 생성하여 초기화한다.
-     * 단순한 설정이나 테스트에서 사용하기 적합하다.
-     * </p>
-     */
-    public UserService() {
-        this.userDAO = new UserDAO();
-        logger.info("UserService 초기화 완료 (기본 UserDAO 사용)");
-    }
-
-    /**
      * UserDAO를 주입받는 생성자
      * <p>
      * 의존성 주입을 통해 UserDAO 구현체를 받아 초기화한다.
@@ -160,7 +148,7 @@ public class UserService {
 
             // 2. 사용자 ID 중복 확인
             logger.debug("사용자 ID 중복 확인 시작...");
-            if (userDAO.findByUserId(request.getUserId()) != null) {
+            if (!isUserIdAvailable(request.getUserId())) {
                 logger.warn("사용자 ID 중복 발생: userId={}", request.getUserId());
                 return new SignupResponse(false, "이미 사용중인 사용자 ID입니다.");
             }
@@ -168,7 +156,7 @@ public class UserService {
 
             // 3. 이메일 중복 확인
             logger.debug("사용자 이메일 중복 시작...");
-            if (userDAO.findByEmail(request.getEmail()) != null) {
+            if (!isEmailAvailable(request.getEmail())) {
                 logger.warn("사용자 이메일 중복 발생: email={}", request.getEmail());
                 return new SignupResponse(false, "이미 사용중인 이메일입니다.");
             }
@@ -393,7 +381,7 @@ public class UserService {
      * 
      * @apiNote 반환된 User 객체의 비밀번호는 해시된 상태임
      */
-    public User getUserById(String userId) {
+    public User getUserByUserId(String userId) {
         if (userId == null || userId.trim().isEmpty()) {
             logger.debug("사용자 조회 시도 - 유효하지 않은 ID: userId={}", userId);
             return null;

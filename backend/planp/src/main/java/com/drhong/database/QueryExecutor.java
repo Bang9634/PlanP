@@ -90,8 +90,13 @@ public class QueryExecutor {
      * 
      * @implNote ConnectionManager.getInstance()를 통해 Connection Pool에 접근
      */
-    public QueryExecutor() {
-        this.connectionManager = ConnectionManager.getInstance();
+    // @Deprecated
+    // public QueryExecutor() {
+    //    this.connectionManager = ConnectionManager.getInstance();
+    //}
+
+    public QueryExecutor(ConnectionManager connectionManager) {
+        this.connectionManager = connectionManager;
     }
 
     /**
