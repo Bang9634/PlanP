@@ -3,18 +3,18 @@ package com.drhong.config;
 /**
  * PlanP 백엔드 애플리케이션 환경설정 통합 관리 클래스
  * <p>
- * PlanP 백엔드 애플리케이션의 모든 환경설정을 중앙화하여 관리한다.
+ * 서버 실행 환경 및 기본 설정을 관리하고, 환경변수를 읽는 공통 메서드를 제공한다.
  * 개발, 테스트, 프로덕션 환경에서 각각 다른 설정값을 자동으로 적용하며,
  * 환경변수와 기본값을 체계적으로 관리해 배포 환경에 관계없이 일관된 동작을 보장한다.
  * </p>
  * 
- * <h3>주요 특징:</h3>
+ * <h3>관리하는 설정:</h3>
  * <ul>
- *   <li><strong>환경별 자동 설정:</strong> PLANP_ENV 값에 따라 개발/테스트/프로덕션 설정 자동 적용</li>
- *   <li><strong>환경변수 우선:</strong> 시스템 환경변수가 설정되면 기본값보다 우선 적용</li>
- *   <li><strong>타입 안전성:</strong> 문자열, 정수, 배열 등 타입별로 적절한 변환 및 검증</li>
- *   <li><strong>중앙화된 관리:</strong> 모든 설정값을 한 곳에서 관리하여 유지보수성 향상</li>
+ *   <li>실행 환경 (development/testing/production)</li>
+ *   <li>HTTP 서버 설정 (호스트, 포트)</li>
+ *   <li>CORS 정책 (허용 오리진)</li>
  * </ul>
+ * 
  * 
  *  * <h3>설정 우선순위:</h3>
  * <ol>
@@ -29,30 +29,7 @@ package com.drhong.config;
  *   <li><code>PLANP_HOST</code> - 서버 바인딩 호스트</li>
  *   <li><code>PLANP_PORT</code> - 서버 포트 번호</li>
  *   <li><code>PLANP_ALLOWED_ORIGINS</code> - CORS 허용 오리진 (쉼표로 구분)</li>
- *   <li><code>MYSQL_HOST</code> - MySQL 서버 호스트</li>
- *   <li><code>MYSQL_PORT</code> - MySQL 서버 포트</li>
- *   <li><code>MYSQL_DATABASE</code> - 데이터베이스명</li>
- *   <li><code>MYSQL_USERNAME</code> - 데이터베이스 사용자명</li>
- *   <li><code>MYSQL_PASSWORD</code> - 데이터베이스 비밀번호</li>
  * </ul>
- * 
- * <h3>사용 예시:</h3>
- * <pre>{@code
- * // 환경 확인
- * Environment env = EnvironmentConfig.getCurrentEnvironment();
- * if (env == Environment.PRODUCTION) {
- *     // 프로덕션 전용 로직
- * }
- * 
- * // 서버 설정 가져오기
- * String host = EnvironmentConfig.getHost();
- * int port = EnvironmentConfig.getPort();
- * 
- * // 데이터베이스 연결 정보
- * String dbUrl = "jdbc:mysql://" + EnvironmentConfig.getMysqlHost() 
- *                + ":" + EnvironmentConfig.getMysqlPort() 
- *                + "/" + EnvironmentConfig.getMysqlDatabase();
- * }</pre>
  * 
  * @author bang9634
  * @since 2025-11-15
@@ -219,212 +196,6 @@ public class EnvironmentConfig {
         return origins.split(",");
     }
     
-    /**
-     * MySQL 데이터베이스 서버의 호스트 주소를 반환한다.
-     * <p>
-     * 애플리케이션이 연결할 MySQL 서버의 네트워크 주소를 반환한다.
-     * 로컬 개발환경에서는 localhost를 사용하고, 프로덕션에서는
-     * 실제 데이터베이스 서버의 주소를 환경변수로 설정한다.
-     * </p>
-     * 
-     * <h4>일반적인 설정값:</h4>
-     * <ul>
-     *   <li><code>"localhost"</code> - 로컬 MySQL 서버 (개발용)</li>
-     *   <li><code>"127.0.0.1"</code> - 로컬 IPv4 주소</li>
-     *   <li><code>"mysql.example.com"</code> - 외부 MySQL 서버</li>
-     *   <li><code>"192.168.1.100"</code> - 내부 네트워크 MySQL 서버</li>
-     * </ul>
-     * 
-     * <h4>연결 테스트:</h4>
-     * <pre>{@code
-     * String host = EnvironmentConfig.getMysqlHost();
-     * int port = EnvironmentConfig.getMysqlPort();
-     * 
-     * try (Socket socket = new Socket(host, port)) {
-     *     System.out.println("MySQL 서버 연결 가능: " + host + ":" + port);
-     * } catch (IOException e) {
-     *     System.err.println("MySQL 서버 연결 실패: " + e.getMessage());
-     * }
-     * }</pre>
-     * 
-     * @return MySQL 서버 호스트 주소 (기본값: "localhost")
-     * 
-     * @see #getMysqlPort()
-     * @see #getMysqlDatabase()
-     */
-    public static String getMysqlHost() {
-        return getEnvValue("MYSQL_HOST", "localhost");
-    }
-    
-    /**
-     * MySQL 데이터베이스 서버의 포트 번호를 반환한다.
-     * <p>
-     * MySQL 서버가 클라이언트 연결을 수신하는 TCP 포트 번호를 반환한다.
-     * 표준 MySQL 포트인 3306번을 기본값으로 사용하며,
-     * 다른 포트를 사용하는 경우 환경변수로 변경할 수 있다.
-     * </p>
-     * 
-     * <h4>일반적인 MySQL 포트:</h4>
-     * <ul>
-     *   <li><strong>3306:</strong> MySQL 기본 포트</li>
-     *   <li><strong>3307:</strong> MySQL 대체 포트</li>
-     *   <li><strong>33060:</strong> MySQL X Protocol 포트</li>
-     * </ul>
-     * 
-     * <h4>포트 사용 확인:</h4>
-     * <pre>{@code
-     * // Linux/Mac에서 포트 사용 확인
-     * netstat -an | grep 3306
-     * 
-     * // Windows에서 포트 사용 확인
-     * netstat -an | findstr 3306
-     * }</pre>
-     * 
-     * @return MySQL 서버 포트 번호 (기본값: 3306)
-     * 
-     * @throws NumberFormatException MYSQL_PORT 환경변수가 숫자가 아닌 경우
-     * 
-     * @see #getMysqlHost()
-     */
-    public static int getMysqlPort() {
-        return Integer.parseInt(getEnvValue("MYSQL_PORT", "3306"));
-    }
-    
-    /**
-     * 사용할 MySQL 데이터베이스명을 환경에 따라 자동으로 반환한다.
-     * <p>
-     * 실행 환경에 따라 서로 다른 데이터베이스를 사용하여 개발, 테스트, 프로덕션 데이터를
-     * 분리한다.. 이를 통해 테스트가 실제 데이터에 영향을 주지 않고,
-     * 환경별로 독립적인 데이터 관리가 가능하다.
-     * </p>
-     * 
-     * <h4>환경별 기본 데이터베이스명:</h4>
-     * <ul>
-     *   <li><strong>DEVELOPMENT:</strong> planp_development</li>
-     *   <li><strong>TESTING:</strong> planp_test</li>
-     *   <li><strong>PRODUCTION:</strong> planp_production</li>
-     * </ul>
-     * 
-     * <h4>데이터베이스 생성 예시:</h4>
-     * <pre>{@code
-     * -- MySQL에서 환경별 데이터베이스 생성
-     * CREATE DATABASE planp_development CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-     * CREATE DATABASE planp_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-     * CREATE DATABASE planp_production CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-     * }</pre>
-     * 
-     * <h4>사용 예시:</h4>
-     * <pre>{@code
-     * String dbName = EnvironmentConfig.getMysqlDatabase();
-     * String url = "jdbc:mysql://localhost:3306/" + dbName 
-     *            + "?useSSL=true&serverTimezone=UTC";
-     * }</pre>
-     * 
-     * @return 환경별 데이터베이스명 (환경변수로 재정의 가능)
-     * 
-     * @see #getCurrentEnvironment()
-     * @see #getMysqlHost()
-     * @see #getMysqlPort()
-     */
-    public static String getMysqlDatabase() {
-        Environment env = getCurrentEnvironment();
-        String defaultDb = switch (env) {
-            case PRODUCTION -> "planp_production";
-            case TESTING -> "planp_test";
-            default -> "planp_development";
-        };
-        return getEnvValue("MYSQL_DATABASE", defaultDb);
-    }
-    
-    /**
-     * MySQL 데이터베이스 연결에 사용할 사용자명을 환경에 따라 반환한다.
-     * <p>
-     * 환경별로 다른 데이터베이스 사용자를 사용하여 권한 분리와 보안을 강화한다.
-     * 개발환경에서는 편의를 위해 root를 사용하지만, 프로덕션에서는
-     * 제한된 권한을 가진 전용 사용자를 사용하는 것이 보안상 안전하다.
-     * </p>
-     * 
-     * <h4>환경별 기본 사용자명:</h4>
-     * <ul>
-     *   <li><strong>DEVELOPMENT:</strong> root (개발 편의성)</li>
-     *   <li><strong>TESTING:</strong> test_user (테스트 전용)</li>
-     *   <li><strong>PRODUCTION:</strong> planp_user (최소 권한)</li>
-     * </ul>
-     * 
-     * <h4>사용자 생성 및 권한 설정 예시:</h4>
-     * <pre>{@code
-     * -- 프로덕션 사용자 생성
-     * CREATE USER 'planp_user'@'%' IDENTIFIED BY 'secure_password';
-     * GRANT SELECT, INSERT, UPDATE, DELETE ON planp_production.* TO 'planp_user'@'%';
-     * 
-     * -- 테스트 사용자 생성
-     * CREATE USER 'test_user'@'localhost' IDENTIFIED BY 'test_password';
-     * GRANT ALL PRIVILEGES ON planp_test.* TO 'test_user'@'localhost';
-     * 
-     * FLUSH PRIVILEGES;
-     * }</pre>
-     * 
-     * <h4>보안 권장사항:</h4>
-     * <ul>
-     *   <li>프로덕션에서는 필요한 최소 권한만 부여</li>
-     *   <li>각 환경별로 다른 비밀번호 사용</li>
-     *   <li>가능하면 호스트 제한 적용 (@'localhost' 등)</li>
-     * </ul>
-     * 
-     * @return 환경별 데이터베이스 사용자명 (환경변수로 재정의 가능)
-     * 
-     * @see #getCurrentEnvironment()
-     * @see #getMysqlPassword()
-     */
-    public static String getMysqlUsername() {
-        Environment env = getCurrentEnvironment();
-        String defaultUser = switch (env) {
-            case PRODUCTION -> "planp_user";
-            case TESTING -> "test_user";
-            default -> "root";
-        };
-        return getEnvValue("MYSQL_USERNAME", defaultUser);
-    }
-    
-    /**
-     * MySQL 데이터베이스 연결에 사용할 비밀번호를 반환한다.
-     * <p>
-     * 데이터베이스 비밀번호는 보안상 매우 중요하므로 환경변수에서만 읽어온다.
-     * 코드에 하드코딩하지 않으며, 개발 환경에서만 예외적으로 빈 비밀번호를 허용한다.
-     * </p>
-     * 
-     * <h4>환경별 비밀번호 정책:</h4>
-     * <ul>
-     *   <li><strong>DEVELOPMENT:</strong> 빈 문자열 허용 (로컬 MySQL 편의성)</li>
-     *   <li><strong>TESTING:</strong> 환경변수 필수</li>
-     *   <li><strong>PRODUCTION:</strong> 환경변수 필수 (강력한 비밀번호 권장)</li>
-     * </ul>
-     * 
-     * <h4>안전한 비밀번호 관리:</h4>
-     * <pre>{@code
-     * // 환경변수로 비밀번호 설정
-     * export MYSQL_PASSWORD="your_secure_password_here"
-     * 
-     * 
-     * @return MySQL 데이터베이스 비밀번호 (개발환경에서만 빈 문자열 허용)
-     * 
-     * @apiNote 프로덕션/테스트 환경에서 MYSQL_PASSWORD 미설정 시 null 반환될 수 있음
-     * 
-     * @see #getCurrentEnvironment()
-     * @see #getMysqlUsername()
-     */
-    public static String getMysqlPassword() {
-        Environment env = getCurrentEnvironment();
-        String password = System.getenv("MYSQL_PASSWORD");
-        
-        // 개발 환경에서는 비밀번호 없어도 됨
-        if (password == null && env == Environment.DEVELOPMENT) {
-            return "";
-        }
-        
-        return password;
-    }
-    
    /**
      * 환경변수에서 값을 읽되, 없으면 기본값을 반환하는 헬퍼 메서드
      * <p>
@@ -450,10 +221,8 @@ public class EnvironmentConfig {
      * @param key 조회할 환경변수명 (예: "PLANP_HOST", "MYSQL_PORT")
      * @param defaultValue 환경변수가 없을 때 사용할 기본값
      * @return 환경변수 값 또는 기본값 (null이 아님을 보장)
-     * 
-     * @implNote private 메서드로 이 클래스 내부에서만 사용
      */
-    private static String getEnvValue(String key, String defaultValue) {
+    public static String getEnvValue(String key, String defaultValue) {
         String value = System.getenv(key);
         return value != null ? value : defaultValue;
     }
@@ -501,9 +270,6 @@ public class EnvironmentConfig {
         System.out.println("호스트: " + getHost());
         System.out.println("포트: " + getPort());
         System.out.println("허용 오리진: " + String.join(", ", getAllowedOrigins()));
-        System.out.println("DB 호스트: " + getMysqlHost() + ":" + getMysqlPort());
-        System.out.println("DB 이름: " + getMysqlDatabase());
-        System.out.println("DB 사용자: " + getMysqlUsername());
         System.out.println("====================");
     }
 }

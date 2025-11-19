@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.drhong.config.EnvironmentConfig;
+import com.drhong.database.DatabaseInitializer;
 import com.drhong.server.PlanPServer;
 import com.drhong.service.UserService;
 
@@ -31,15 +32,14 @@ import com.drhong.service.UserService;
  * java -jar planp-backend.jar
  * 
  * # 커스텀 포트로 실행
- * java -jar planp-backend.jar 3000
+ * java -jar planp-backend.jar [포트번호] [호스트주소]
+ * 
+ * # Linux Ubuntu 환경에서 백그라운드로 실행
+ * nohup java -jar planp-backend.jar &  # nohup.out 생성 및 로그 기록
  * 
  * # 환경변수로 설정
  * export PLANP_HOST=0.0.0.0
  * export PLANP_PORT=8080
- * java -jar planp-backend.jar
- * 
- * # Docker 환경
- * docker run -e PLANP_PORT=8080 -p 8080:8080 planp-backend
  * }</pre>
  * 
  * <h3>설정 우선순위:</h3>
@@ -99,31 +99,42 @@ public class Main {
      * 커맨드라인 인수 사용법은 아래에 후술한다.
      * </p>
      * 
-     * <h4>실행 단계:</h4>
+     * <h3>실행 단계:</h3>
      * <ol>
      *   <li>시작 배너 출력</li>
      *   <li>설정값 파싱 (포트, 호스트)</li>
-     *   <li>의존성 객체 초기화</li>
+     *   <li>데이터베이스 초기화</li>
+     *   <li>서비스 초기화</li>
      *   <li>HTTP 서버 생성</li>
      *   <li>서버 시작 및 대기</li>
      * </ol>
      * 
-     * <h4>종료 코드:</h4>
+     * <h3>종료 코드:</h3>
      * <ul>
      *   <li><strong>0:</strong> 정상 종료</li>
      *   <li><strong>1:</strong> 서버 시작 실패</li>
      * </ul>
      * 
-     * <h4>커맨드라인 인수:</h4>
+     * <h3>커맨드라인 인수:</h3>
      * <pre>{@code
-     * java -jar planp.jar [포트번호] [호스트주소]
+     * java -jar planp-backend.jar [포트번호] [호스트주소]
      * 
-     * 예시:
-     * java -jar planp.jar 8080 0.0.0.0  # 포트 8080, 호스트 주소 0.0.0.0으로 시작
-     * java -jar planp.jar               # 환경변수 또는 기본값으로 시작
+     * # 예시:
+     * java -jar planp-backend.jar 8080 0.0.0.0  # 포트 8080, 호스트 주소 0.0.0.0으로 시작
+     * java -jar planp-backend.jar               # 환경변수 또는 기본값으로 시작
      * }</pre>
-     * 
      * @param args 커맨드라인 인수 배열 (선택적 포트 번호 포함)
+     * 
+     * @exception IllegalArgumentException 포트 번호 및 호스트주소가 유효하지않거나,
+     *                                     데이터 베이스 연결 설정이 잘못된 경우
+     * 
+     * @exception SecurityException 프로그램의 권한이 부족한 경우
+     * 
+     * @exception IOException 포트가 이미 사용 중 혹은 호스트 주소를 찾을 수 없거나
+     *                        서버 소켓 생성 실패, 네트워크 인터페이스가 사용 불가능한 경우
+     * 
+     * @exception RuntimeException 데이터베이스 초기화 실패 (MySQL 연결 불가) 또는
+     *                             서비스 초기화 실패, 예상지 못한 시스템 오류가 발생하는 경우
      * 
      * @apiNote 이 메서드는 블로킹되며, 서버가 종료될 때까지 반환되지 않음
      */
@@ -146,7 +157,13 @@ public class Main {
             System.out.printf("├─ 호스트: %s\n", host);
             System.out.printf("├─ 포트: %d\n", port);
             System.out.printf("├─ 환경: %s\n", EnvironmentConfig.getCurrentEnvironment());
-            System.out.printf("└─ 허용 오리진: %s\n\n", String.join(", ", EnvironmentConfig.getAllowedOrigins()));
+            System.out.printf("└─  허용 오리진: %s\n", String.join(", ", EnvironmentConfig.getAllowedOrigins()));
+            
+            // DB 초기화
+            System.out.println("\nDB 초기화 중...");
+            DatabaseInitializer dbInit = new DatabaseInitializer();
+            dbInit.initialize();
+            System.out.println("\nDB 초기화 완료");
 
             // 서비스 초기화
             System.out.println("서비스 컴포넌트 초기화...");
@@ -156,11 +173,10 @@ public class Main {
             // HTTP 서버 생성 및 시작
             System.out.println("\nHTTP 서버 생성 중...");
             PlanPServer server = new PlanPServer(host, port, userService);
+            System.out.println("\nHTTP 서버 생성 완료");
 
             // Shutdown Hook 등록 (Graceful Shutdown)
             registerShutdownHook(server);
-
-            
             
             System.out.printf("\n서버가 http://%s:%d 에서 시작되었습니다\n", host, port);
             System.out.println("🏥 Health Check: http://" + host + ":" + port + "/health");
@@ -216,9 +232,11 @@ public class Main {
      * 
      * @param args 커맨드라인 인수 배열
      * @return 사용할 포트 번호 (1-65535 범위)
-     * @exception IllegalArgumentException
+     * 
+     * @exception NumberFormatException 잘못된 포트 번호 형식이 인자로 들어오는 경우
      * 
      * @apiNote 시스템 포트(1-1023) 사용 시 관리자 권한이 필요할 수 있음
+     * @apiNote 프론트엔드와 동일한 포트 사용 시 충돌 발생할 수 있음
      */
     private static int getPortFromArgs(String[] args) {
         // 1. 프로그램 인수에서 포트 확인
@@ -259,16 +277,16 @@ public class Main {
      * <p>
      * 우선순위에 따라 호스트 주소를 결정한다:
      * 1. 커맨드라인 인수 > 2. 환경변수 > 3. 기본값
-     * 보안상 기본값으로 localhost를 사용하며, 프로덕션에서는 환경변수 설정으로 변경 가능하다.
+     * 기본값으로 localhost를 사용하며, 프로덕션에서는 환경변수 설정으로 변경 가능하다.
      * </p>
      * 
      * <h4>커맨드라인 사용법:</h4>
      * <pre>{@code
-     * java -jar planp.jar [포트] [호스트]
+     * java -jar planp-backend.jar [포트] [호스트]
      * 
      * 예시:
-     * java -jar planp.jar 8080 localhost
-     * java -jar planp.jar 3000 0.0.0.0
+     * java -jar planp-backend.jar 8080 localhost
+     * java -jar planp-backend.jar 3000 0.0.0.0
      * }</pre>
      * 
      * @param args 커맨드라인 인수 배열 (두 번째 인수로 호스트 지정 가능)
@@ -316,7 +334,8 @@ public class Main {
      * 포트번호가 1-65535 범위를 넘어가면 예외를 던진다.
      * </p>
      * @param port 검증할 포트번호
-     * @exception IllegalArgumentException
+     * 
+     * @exception IllegalArgumentException 범위를 벗어난 유효하지 않은 포트 번호인 경우
      */
     private static void validatePort(int port) {
         if (port < 1 || port > 65535) {
@@ -331,7 +350,8 @@ public class Main {
      * 예외를 던진다.
      * </p>
      * @param host 검증할 호스트 주소
-     * @exception IllegalArgumentException
+     * 
+     * @exception IllegalArgumentException 호스트 주소가 비어있거나, 공백이 포함되어 있는 경우
      */
     private static void validateHost(String host) {
         if (host == null || host.trim().isEmpty()) {
@@ -360,6 +380,8 @@ public class Main {
      * </ol>
      * 
      * @param server 종료할 PlanPServer 인스턴스
+     * 
+     * @exception Exception 서버 종류 중 예상치 못한 오류가 발생한 경우
      * 
      * @implNote Runtime.addShutdownHook()을 사용하여 JVM 레벨에서 관리
      */
