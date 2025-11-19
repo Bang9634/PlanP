@@ -32,7 +32,7 @@ import com.drhong.validator.SignupValidator;
  * <h3>보안 정책:</h3>
  * <ul>
  *   <li>모든 비밀번호는 bcrypt 해싱으로 암호화</li>
- *   <li>비밀번호 강도 검증 (최소 40점 이상)</li>
+ *   <li>비밀번호 강도 검증 </li>
  *   <li>사용자 ID와 이메일 유일성 보장</li>
  *   <li>입력값 유효성 검증을 통한 보안 강화</li>
  * </ul>
@@ -135,7 +135,7 @@ public class UserService {
      * @param request 회원가입 정보가 포함된 요청 DTO
      * @return 회원가입 처리 결과를 담은 응답 DTO
      * 
-     * @throws IllegalArgumentException request가 null인 경우
+     * @exception Exception 회원 처리 중 예외가 발생한 경우
      * 
      * @apiNote 예외 발생 시에도 사용자 친화적 메시지로 실패 응답 반환
      */
@@ -149,23 +149,33 @@ public class UserService {
         
         try {
             // 1. 입력 데이터 유효성 검증
+            logger.debug("Request 유효성 검증 시작...");
             List<String> validationErrors = SignupValidator.validate(request);
             if (!validationErrors.isEmpty()) {
+                logger.debug("Request가 유효하지 않음");
                 String errorMessage = String.join(", ", validationErrors);
                 return new SignupResponse(false, errorMessage);
             }
+            logger.debug("정상적인 Request");
 
             // 2. 사용자 ID 중복 확인
-            if (userDAO.existsByUserId(request.getUserId())) {
+            logger.debug("사용자 ID 중복 확인 시작...");
+            if (userDAO.findByUserId(request.getUserId()) != null) {
+                logger.warn("사용자 ID 중복 발생: userId={}", request.getUserId());
                 return new SignupResponse(false, "이미 사용중인 사용자 ID입니다.");
             }
+            logger.debug("사용자 ID 중복되지않음: userId={}", request.getUserId());
 
             // 3. 이메일 중복 확인
-            if (userDAO.existsByEmail(request.getEmail())) {
+            logger.debug("사용자 이메일 중복 시작...");
+            if (userDAO.findByEmail(request.getEmail()) != null) {
+                logger.warn("사용자 이메일 중복 발생: email={}", request.getEmail());
                 return new SignupResponse(false, "이미 사용중인 이메일입니다.");
             }
+            logger.debug("사용자 이메일 중복되지않음: email={}", request.getEmail());
 
             // 4. 비밀번호 강도 확인 (선택사항)
+            logger.debug("비밀번호 강도 확인 시작...");
             int passwordStrength = PasswordUtil.getPasswordStrength(request.getPassword());
             if (passwordStrength < MIN_PASSWORD_STRENGTH) {
                 String strengthText = PasswordUtil.getPasswordStrengthText(request.getPassword());
@@ -174,8 +184,10 @@ public class UserService {
                 return new SignupResponse(false, 
                     String.format("비밀번호 강도가 너무 약합니다. (현재: %s, 권장: 보통 이상)", strengthText));
             }
+            logger.debug("비밀번호 강도 충분함");
 
             // 5. 비밀번호 암호화
+            logger.debug("비밀번호 암호화 시작...");
             String hashedPassword = PasswordUtil.hash(request.getPassword());
             logger.debug("비밀번호 암호화 완료: userId={}", request.getUserId());
 
@@ -195,7 +207,8 @@ public class UserService {
             }
 
             // 8. 성공 응답
-            logger.info("회원가입 성공: userId={}, email={}", request.getUserId(), request.getEmail());
+            logger.info("회원가입 성공: userId={}, email={}",
+                request.getUserId(), request.getEmail());
             return new SignupResponse(true, "회원가입이 완료되었습니다.", request.getUserId());
 
         } catch (Exception e) {
@@ -340,7 +353,7 @@ public class UserService {
             return false;
         }
         
-        boolean available = !userDAO.existsByUserId(userId);
+        boolean available = userDAO.findByUserId(userId) == null;
         logger.debug("ID 사용가능성 확인: userId={}, available={}", userId, available);
         return available;
     }
@@ -363,7 +376,7 @@ public class UserService {
             return false;
         }
         
-        boolean available = !userDAO.existsByEmail(email);
+        boolean available = userDAO.findByEmail(email) == null;
         logger.debug("이메일 사용가능성 확인: email={}, available={}", email, available);
         return available;
     }

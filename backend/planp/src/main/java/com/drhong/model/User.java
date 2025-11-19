@@ -27,6 +27,7 @@ public class User {
      * 계정 생성 날짜를 현재 로컬 시간으로 초기화한다.
      * 계정 활성화 여부를 true로 설정한다.
      * </p>
+     * TODO: 데이터베이스에 삽입할 때 MySQL에서 자동으로 현재 시간으로 저장함. 중복되는데 이거 어케할지 생각좀
      */
     public User() {
         this.createdAt = LocalDateTime.now();
@@ -78,7 +79,7 @@ public class User {
     /**
      * User 객체의 문자열 표현을 반환한다.
      * <p>
-     * 사용자의 ID, 이름, 이메일, 활성화 상태를 포함한 문자열을 생성한다.
+     * 사용자의 ID, 이름, 이메일 활성화 상태를 포함한 문자열을 생성한다.
      * 비밀번호와 생성 날짜는 보안과 가독성을 위해 제외된다.
      * </p>
      * 
@@ -87,6 +88,6 @@ public class User {
     @Override
     public String toString() {
         return String.format("User{userId='%s', name='%s', email='%s', active=%s}", 
-                           userId, name, email, active);
+            userId, name, email, active);
     }
 }

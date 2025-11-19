@@ -11,6 +11,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.drhong.dto.LoginRequest;
 import com.drhong.dto.SignupRequest;
 import com.drhong.dto.SignupResponse;
 import com.drhong.service.UserService;
@@ -161,14 +162,44 @@ public class UserController {
      * 성공 시 사용자 정보를 반환하고, 실패 시 적절한 오류 메시지를 제공한다.
      * </p>
      * 
+     * <h4>HTTP 요청 형식:</h4>
+     * <pre>{@code
+     * POST /api/users/login
+     * Content-Type: application/json
+     * 
+     * {
+     *   "userId": "myuser123",
+     *   "password": "securePassword!"
+     * }
+     * }</pre>
+     * 
+     * <h4>응답 예시:</h4>
+     * <pre>{@code
+     * // 성공 시 (HTTP 200)
+     * {
+     *   "success": true,
+     *   "message": "로그인 성공",
+     *   "userId": "myuser123"
+     * }
+     * 
+     * // 실패 시 (HTTP 401)
+     * {
+     *   "success": false,
+     *   "message": "아이디 또는 비밀번호가 올바르지 않습니다."
+     * }
+     * }</pre>
+     * 
      * @param exchange HTTP 요청/응답 처리를 위한 교환 객체
      * @throws IOException 네트워크 I/O 처리 중 오류가 발생한 경우
+     * @author wnwoghd
+     * @apiNote LoginRequest DTO를 사용하여 타입 안정성을 보장함
      */
     public void handleLogin(HttpExchange exchange) throws IOException {
         String clientIP = exchange.getRemoteAddress().getAddress().getHostAddress();
 
         // HTTP POST 메서드 방식만 허용
         if (!"POST".equals(exchange.getRequestMethod())) {
+            logger.warn("잘못된 HTTP 메서드: method={}, clientIP={}", exchange.getRequestMethod(), clientIP);
             sendErrorResponse(exchange, 405, "Method Not Allowed");
             return;
         }
@@ -176,14 +207,29 @@ public class UserController {
         try {
             // request의 body에서 로그인 정보 추출
             String requestBody = readRequestBody(exchange);
-            // TODO: 임시로 Map 사용, 추후 LoginRequest DTO로 변경 예정
-            @SuppressWarnings("unchecked")
-            Map<String, String> loginData = gson.fromJson(requestBody, Map.class); 
+            logger.debug("로그인 요청 본문 수신: length={}", requestBody.length());
             
-            String userId = loginData.get("userId");
-            String password = loginData.get("password");
+            // LoginRequest DTO로 변환 (기존 Map 사용 대신 타입 안정성 확보)
+            LoginRequest loginRequest = gson.fromJson(requestBody, LoginRequest.class);
+            
+            if (loginRequest == null) {
+                logger.warn("잘못된 JSON: clientIP={}", clientIP);
+                sendErrorResponse(exchange, 400, "Invalid JSON format");
+                return;
+            }
+            
+            String userId = loginRequest.getUserId();
+            String password = loginRequest.getPassword();
 
-            logger.info("로그인 인증 시도: userId={}", userId);
+            // 필수 필드 검증
+            if (userId == null || userId.trim().isEmpty() || 
+                password == null || password.trim().isEmpty()) {
+                logger.warn("필수 필드 누락: userId={}, clientIP={}", userId, clientIP);
+                sendErrorResponse(exchange, 400, "userId와 password는 필수 입력 항목입니다.");
+                return;
+            }
+
+            logger.info("로그인 인증 시도: userId={}, clientIP={}", userId, clientIP);
             
             // UserService를 통한 로그인 검증
             boolean loginSuccess = userService.login(userId, password);
@@ -193,12 +239,13 @@ public class UserController {
             response.put("success", loginSuccess);
             response.put("message", loginSuccess ? "로그인 성공" : "아이디 또는 비밀번호가 올바르지 않습니다.");
             
-            // 로그인 성공 시 reponse에 사용자 아이디를 포함
+            // 로그인 성공 시 response에 사용자 아이디를 포함
             if (loginSuccess) {
                 response.put("userId", userId);
+                logger.info("로그인 성공: userId={}, clientIP={}", userId, clientIP);
+            } else {
+                logger.warn("로그인 실패: userId={}, clientIP={}", userId, clientIP);
             }
-
-            logger.info("로그인 처리 완료: userId={}, success={}", userId, loginSuccess);
 
             // response를 JSON 형태로 파싱하여 클라이언트에게 전송
             String jsonResponse = gson.toJson(response);

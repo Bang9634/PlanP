@@ -102,6 +102,6 @@ public class SignupRequest {
     @Override
     public String toString() {
         return String.format("SignupRequest{userId='%s', name='%s', email='%s'}", 
-                           userId, name, email);
+                           userId, name, email );
     }
 }

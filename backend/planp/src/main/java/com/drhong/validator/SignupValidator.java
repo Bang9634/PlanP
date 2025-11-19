@@ -179,7 +179,7 @@ public class SignupValidator {
         
         // 이메일 검증
         validateEmail(request.getEmail(), errors);
-
+        
         return errors;
     }
 
