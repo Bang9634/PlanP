@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.drhong.dao.UserDAO;
+import com.drhong.database.QueryExecutor;
 import com.drhong.dto.SignupRequest;
 import com.drhong.dto.SignupResponse;
 import com.drhong.model.User;
@@ -248,16 +249,17 @@ public class UserService {
         logger.debug("로그인 시도: userId={}", userId);
 
         try {
-            // 사용자 조회
-            User user = userDAO.findByUserId(userId);
-            if (user == null) {
+            // 경량 해시 단일 조회 (전체 User 객체 로딩 대신)
+            final String sql = "SELECT password_hash FROM users WHERE user_id = ?";
+            QueryExecutor executor = new QueryExecutor();
+            String storedHash = executor.executeQuerySingle(sql, rs -> rs.getString("password_hash"), userId);
+            if (storedHash == null) {
                 logger.debug("로그인 실패 - 사용자 없음: userId={}", userId);
                 return false;
             }
-            
-            // 비밀번호 검증
-            boolean isValid = PasswordUtil.verify(password, user.getPassword());
-            
+
+            boolean isValid = PasswordUtil.verify(password, storedHash);
+
             if (isValid) {
                 logger.info("로그인 성공: userId={}", userId);
             } else {
