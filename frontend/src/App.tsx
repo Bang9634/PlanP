@@ -147,21 +147,72 @@ export default function App() {
 
 
 
-  const handleLogin = (id: string, password: string) => {
-    // 실제 앱에서는 서버 인증을 해야 하지만, 여기서는 시뮬레이션
-    setIsLoggedIn(true);
-    setCurrentUser(id);
-    setCurrentView('home');
-    alert(`${id}님, 환영합니다!`);
-  };
+    const handleLogin = async (id: string, password: string) => {
+        console.log("📨 로그인 요청:", { id, password });
 
-  const handleSignup = (id: string, password: string, confirmPassword: string) => {
-    // 실제 앱에서는 서버에 회원가입 요청을 해야 하지만, 여기서는 시뮬레이션
-    setIsLoggedIn(true);
-    setCurrentUser(id);
-    setCurrentView('home');
-    alert(`${id}님, 회원가입이 완료되었습니다!`);
-  };
+        // 백엔드 DTO 형태로 request body 구성
+        const loginData: LoginRequest = {
+            userId: id,
+            password: password,
+        };
+
+        try {
+            const result: LoginResponse = await apiService.login(loginData);
+
+            if (result.success) {
+                // 로그인 성공
+                alert(`🎉 ${result.user?.name || id}님 환영합니다!`);
+
+                setIsLoggedIn(true);
+                setCurrentUser(result.user?.userId || id); // 서버에서 받은 userId
+                setCurrentView("home");
+            } else {
+                // 로그인 실패 메시지 반환
+                alert(`❌ 로그인 실패: ${result.message}`);
+            }
+        } catch (error) {
+            console.error("로그인 오류:", error);
+            alert("서버와 연결할 수 없습니다. 잠시 후 다시 시도해주세요.");
+        }
+    };
+
+    const handleSignup = async (
+        id: string,
+        password: string,
+        confirmPassword: string,
+        name: string,
+        email: string
+    ) => {
+        console.log("📨 회원가입 요청 데이터:", {
+            id,
+            password,
+            confirmPassword,
+            name,
+            email,
+        });
+
+        // 📌 백엔드 DTO(SignupRequest)에 정확히 맞는 JSON 구조
+        const signupData: SignupRequest = {
+            userId: id,
+            password: password,
+            name: name,
+            email: email,
+        };
+
+        try {
+            const result = await apiService.signup(signupData);
+
+            if (result.success) {
+                alert("🎉 회원가입이 완료되었습니다!");
+                setCurrentView("login"); // 🔥 회원가입 후 → 로그인 화면으로 이동
+            } else {
+                alert(`❌ 회원가입 실패: ${result.message}`);
+            }
+        } catch (error) {
+            console.error("회원가입 오류:", error);
+            alert("서버와 연결할 수 없습니다. 다시 시도해주세요.");
+        }
+    };
 
   const handleLogout = () => {
     setIsLoggedIn(false);
