@@ -175,7 +175,23 @@ export class ApiService {
       
       throw error;
     }
-  }
+  }// 이메일 전송 API
+    async sendEmailCode(email: string): Promise<SignupResponse> {
+        console.log("📨 이메일 인증코드 전송 API 호출");
+        return this.request<SignupResponse>("/users/send-email-code", {
+            method: "POST",
+            body: JSON.stringify({ email }),
+        });
+    }
+
+    async verifyEmailCode(email: string, code: string): Promise<SignupResponse> {
+        console.log("🔍 이메일 인증코드 검증 API 호출");
+        return this.request<SignupResponse>("/users/verify-email-code", {
+            method: "POST",
+            body: JSON.stringify({ email, code }),
+        });
+    }
+
 
   // 사용자 관리 API
   async signup(data: SignupRequest): Promise<SignupResponse> {
