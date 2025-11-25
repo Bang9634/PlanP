@@ -62,6 +62,18 @@
             <artifactId>logback-classic</artifactId>
             <version>1.2.12</version>
         </dependency>
+
+        <!-- Google OAuth 2.0 의존성 추가 -->
+        <dependency>
+            <groupId>com.google.auth</groupId>
+            <artifactId>google-auth-library-oauth2-http</artifactId>
+            <version>1.19.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.api-client</groupId>
+            <artifactId>google-api-client</artifactId>
+            <version>2.2.0</version>
+        </dependency>
     </dependencies>
 
     <build>

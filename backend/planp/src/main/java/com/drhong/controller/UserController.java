@@ -14,7 +14,10 @@ import org.slf4j.LoggerFactory;
 import com.drhong.dto.LoginRequest;
 import com.drhong.dto.SignupRequest;
 import com.drhong.dto.SignupResponse;
+import com.drhong.dto.GoogleUserInfo;
 import com.drhong.service.UserService;
+import com.drhong.service.GoogleAuthService;
+import com.drhong.model.User;
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
 import com.sun.net.httpserver.HttpExchange;
@@ -48,6 +51,9 @@ public class UserController {
     
     /** 사용자 비즈니스 로직 처리 서비스 */
     private final UserService userService;
+    
+    /** Google OAuth 인증 서비스 */
+    private final GoogleAuthService googleAuthService;
 
     /** JSON을 다루기 위한 Gson 인스턴스 */
     private final Gson gson;
@@ -59,6 +65,7 @@ public class UserController {
      */
     public UserController(UserService userService) {
         this.userService = userService;
+        this.googleAuthService = new GoogleAuthService();
         this.gson = new Gson();
     }
     
@@ -529,4 +536,149 @@ public class UserController {
         }
         return params;
     }
+
+    /**
+     * Google OAuth 인증 URL 생성 요청을 처리하는 메서드
+     * <p>
+     * GET /api/auth/google 요청을 처리한다.
+     * 클라이언트를 Google 인증 페이지로 리디렉션하기 위한 URL을 생성한다.
+     * </p>
+     * @author wnwoghd
+     * @param exchange HTTP 요청/응답 교환 객체
+     * @throws IOException 응답 처리 중 I/O 오류 발생 시
+     */
+    public void handleGoogleAuth(HttpExchange exchange) throws IOException {
+        logger.info("Google 인증 URL 생성 요청 처리 시작");
+
+        try {
+            if (!"GET".equals(exchange.getRequestMethod())) {
+                sendErrorResponse(exchange, 405, "GET 메서드만 허용됩니다.");
+                return;
+            }
+
+            // 설정 유효성 검증
+            if (!googleAuthService.validateConfiguration()) {
+                logger.error("Google OAuth 설정이 유효하지 않음");
+                sendErrorResponse(exchange, 500, "Google OAuth 설정이 올바르지 않습니다.");
+                return;
+            }
+
+            // Google 인증 URL 생성
+            String authUrl = com.drhong.config.GoogleOAuthConfig.buildAuthUrl();
+
+            // 응답 JSON 생성
+            Map<String, String> response = new HashMap<>();
+            response.put("authUrl", authUrl);
+
+            sendJsonResponse(exchange, 200, gson.toJson(response));
+            logger.info("Google 인증 URL 생성 완료");
+
+        } catch (Exception e) {
+            logger.error("Google 인증 URL 생성 중 예외 발생", e);
+            sendErrorResponse(exchange, 500, "서버 오류가 발생했습니다.");
+        }
+    }
+
+    /**
+     * Google OAuth 콜백 처리 메서드
+     * <p>
+     * GET /api/auth/google/callback 요청을 처리한다.
+     * Google에서 발급받은 인증 코드를 통해 사용자 정보를 받아와
+     * 로컬 계정으로 변환하거나 기존 계정과 연동한다.
+     * </p>
+     * @author wnwoghd
+     * @param exchange HTTP 요청/응답 교환 객체
+     * @throws IOException 응답 처리 중 I/O 오류 발생 시
+     */
+    public void handleGoogleCallback(HttpExchange exchange) throws IOException {
+        logger.info("Google OAuth 콜백 처리 시작");
+
+        try {
+            if (!"GET".equals(exchange.getRequestMethod())) {
+                sendErrorResponse(exchange, 405, "GET 메서드만 허용됩니다.");
+                return;
+            }
+
+            // 쿼리 파라미터 추출
+            Map<String, String> params = parseQueryParams(exchange.getRequestURI().getQuery());
+            String authCode = params.get("code");
+            String error = params.get("error");
+
+            // 에러 확인
+            if (error != null) {
+                logger.warn("Google OAuth 에러 발생: {}", error);
+                sendErrorResponse(exchange, 400, "Google 인증이 거부되었습니다: " + error);
+                return;
+            }
+
+            // 인증 코드 확인
+            if (authCode == null || authCode.trim().isEmpty()) {
+                logger.warn("Google OAuth 인증 코드가 없음");
+                sendErrorResponse(exchange, 400, "인증 코드가 필요합니다.");
+                return;
+            }
+
+            // Google 사용자 정보 유효성 검증
+            GoogleUserInfo googleUserInfo = googleAuthService.processGoogleLogin(authCode);
+            if (googleUserInfo == null || !googleUserInfo.isValid()) {
+                logger.error("Google 사용자 정보 처리 실패");
+                sendErrorResponse(exchange, 401, "Google 사용자 정보를 가져올 수 없습니다.");
+                return;
+            }
+
+            // 기존 사용자 확인 (이메일 기준)
+            User existingUser = userService.getUserByEmail(googleUserInfo.getEmail());
+            User loginUser;
+
+            if (existingUser != null) {
+                // 기존 사용자가 있는 경우
+                if (!existingUser.isGoogleUser()) {
+                    // 로컬 계정 사용자인 경우 - Google 로그인 정보 추가
+                    boolean linked = userService.linkGoogleAccount(existingUser.getUserId(), googleUserInfo.getId());
+                    if (!linked) {
+                        logger.error("Google 계정 연동 실패: userId={}", existingUser.getUserId());
+                        sendErrorResponse(exchange, 500, "계정 연동에 실패했습니다.");
+                        return;
+                    }
+                    existingUser.setGoogleUser(true);
+                    existingUser.setGoogleId(googleUserInfo.getId());
+                }
+                loginUser = existingUser;
+                logger.info("기존 사용자로 Google 로그인: email={}", googleUserInfo.getEmail());
+            } else {
+                // 새 사용자 생성
+                String localUserId = googleUserInfo.generateLocalUserId();
+                loginUser = new User(localUserId, googleUserInfo.getName(), 
+                                   googleUserInfo.getEmail(), googleUserInfo.getId(), true);
+                
+                boolean saved = userService.saveSocialUser(loginUser);
+                if (!saved) {
+                    logger.error("소셜 사용자 저장 실패: email={}", googleUserInfo.getEmail());
+                    sendErrorResponse(exchange, 500, "사용자 계정 생성에 실패했습니다.");
+                    return;
+                }
+                logger.info("새 Google 사용자 생성 완료: email={}, userId={}", 
+                          googleUserInfo.getEmail(), localUserId);
+            }
+
+            // 로그인 성공 응답
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Google 로그인 성공");
+            response.put("user", Map.of(
+                "userId", loginUser.getUserId(),
+                "name", loginUser.getName(),
+                "email", loginUser.getEmail(),
+                "isGoogle", loginUser.isGoogleUser()
+            ));
+
+            sendJsonResponse(exchange, 200, gson.toJson(response));
+            logger.info("Google 소셜 로그인 완료: userId={}", loginUser.getUserId());
+
+        } catch (Exception e) {
+            logger.error("Google OAuth 콜백 처리 중 예외 발생", e);
+            sendErrorResponse(exchange, 500, "서버 오류가 발생했습니다.");
+        }
+    }
+
 }

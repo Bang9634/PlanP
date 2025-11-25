@@ -34,7 +34,6 @@ import com.drhong.config.DatabaseConfig;
  * 
  * <h3>생성되는 테이블</h3>
  * <pre>
- * users:
  *   - user_id (PK, VARCHAR(50))
  *   - username (VARCHAR(100), NOT NULL)
  *   - password_hash (VARCHAR(255), NOT NULL)
@@ -42,6 +41,8 @@ import com.drhong.config.DatabaseConfig;
  *   - is_active (BOOLEAN, DEFAULT FALSE)
  *   - created_at (TIMESTAMP, DEFAULT CURRENT_TIMESTAMP)
  *   - INDEX: idx_email, idx_username
+ *   - is_google_user (BOOLEAN, NOT NULL, DEFAULT FALSE) // Google 로그인 사용자 여부
+ *   - google_id (VARCHAR(255), NULL) // Google에서의 사용자 ID
  * </pre>
  * 
  * @author bang9634
@@ -272,6 +273,19 @@ public class DatabaseInitializer {
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             """);
             logger.info("  ✓ users 테이블 준비 완료");
+
+            // [추가] 구글 관련 컬럼이 없으면 자동 추가 (MySQL 8.0.29 이상)
+            try {
+                stmt.executeUpdate("""
+                    ALTER TABLE users
+                    ADD COLUMN IF NOT EXISTS is_google_user BOOLEAN NOT NULL DEFAULT FALSE COMMENT 'Google 로그인 사용자 여부',
+                    ADD COLUMN IF NOT EXISTS google_id VARCHAR(255) NULL COMMENT 'Google에서의 사용자 ID'
+                """);
+                logger.info("  ✓ users 테이블에 Google 관련 컬럼 추가(필요시)");
+            } catch (SQLException e) {
+                // 구버전 MySQL에서는 IF NOT EXISTS 미지원 → 에러 무시
+                logger.debug("Google 관련 컬럼 추가 쿼리 무시 (이미 존재하거나 MySQL 버전 미지원)");
+            }
             
         }
     }

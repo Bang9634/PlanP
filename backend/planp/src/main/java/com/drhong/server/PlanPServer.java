@@ -191,13 +191,25 @@ public class PlanPServer {
         checkEmailContext.getFilters().add(corsFilter);
         logger.debug("이메일 중복 확인 API 설정: GET /api/users/check-email");
         
+        // Google OAuth 인증 URL 생성 API
+        HttpContext googleAuthContext = server.createContext("/api/auth/google", userController::handleGoogleAuth);
+        googleAuthContext.getFilters().add(corsFilter);
+        logger.debug("Google OAuth 인증 API 설정: GET /api/auth/google");
+        
+        // Google OAuth 콜백 처리 API
+        HttpContext googleCallbackContext = server.createContext("/api/auth/google/callback", userController::handleGoogleCallback);
+        googleCallbackContext.getFilters().add(corsFilter);
+        logger.debug("Google OAuth 콜백 API 설정: GET /api/auth/google/callback");
+        
         // 라우트 설정 완료 로그
         logger.info("라우트 설정 완료:");
         logger.info("  ├─ GET  /health                    → HealthCheckHandler (헬스 체크)");
         logger.info("  ├─ POST /api/users/signup          → UserController::handleSignup (회원가입)");
         logger.info("  ├─ POST /api/users/login           → UserController::handleLogin (로그인)");
         logger.info("  ├─ GET  /api/users/check-id        → UserController::handleCheckUserId (ID 중복 확인)");
-        logger.info("  └─ GET  /api/users/check-email     → UserController::handleCheckEmail (이메일 중복 확인)");
+        logger.info("  ├─ GET  /api/users/check-email     → UserController::handleCheckEmail (이메일 중복 확인)");
+        logger.info("  ├─ GET  /api/auth/google           → UserController::handleGoogleAuth (Google OAuth)");
+        logger.info("  └─ GET  /api/auth/google/callback  → UserController::handleGoogleCallback (Google 콜백)");
         logger.info("모든 API에 CORS 필터 적용 완료 (localhost 개발 환경 허용)");
     }
     

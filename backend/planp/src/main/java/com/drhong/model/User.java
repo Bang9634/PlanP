@@ -20,6 +20,10 @@ public class User {
     private String email;           // 사용자의 이메일
     private LocalDateTime createdAt;// 계정 생성 날짜
     private boolean active;         // 계정 활성화 여부
+    
+    // Google 소셜 로그인 지원 필드 추가
+    private boolean isGoogleUser;   // Google 로그인 사용자 여부
+    private String googleId;        // Google에서의 사용자 ID
 
     /**
      * 기본 유저 객체를 생성한다.
@@ -53,6 +57,31 @@ public class User {
         this.password = password;
         this.name = name;
         this.email = email;
+        this.isGoogleUser = false;  // 기본 로컬 계정
+        this.googleId = null;
+    }
+
+    /**
+     * Google 로그인용 유저 객체를 생성한다.
+     * <p>
+     * Google 로그인으로 가입하는 사용자를 위한 생성자.
+     * 비밀번호는 null로 설정된다 (Google 로그인에서는 비밀번호 불필요).
+     * </p>
+     * 
+     * @author wnwoghd
+     * @param userId 생성할 사용자 ID
+     * @param name 사용자 이름
+     * @param email 사용자 이메일
+     * @param googleId Google에서의 사용자 ID
+     */
+    public User(String userId, String name, String email, String googleId, boolean isGoogle) {
+        this();
+        this.userId = userId;
+        this.password = null;  // Google 로그인은 비밀번호 불필요
+        this.name = name;
+        this.email = email;
+        this.isGoogleUser = isGoogle;
+        this.googleId = googleId;
     }
 
     /**
@@ -76,6 +105,12 @@ public class User {
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }
 
+    public boolean isGoogleUser() { return isGoogleUser; }
+    public void setGoogleUser(boolean googleUser) { this.isGoogleUser = googleUser; }
+
+    public String getGoogleId() { return googleId; }
+    public void setGoogleId(String googleId) { this.googleId = googleId; }
+
     /**
      * User 객체의 문자열 표현을 반환한다.
      * <p>
@@ -87,7 +122,22 @@ public class User {
      */
     @Override
     public String toString() {
-        return String.format("User{userId='%s', name='%s', email='%s', active=%s}", 
-            userId, name, email, active);
+        return String.format("User{userId='%s', name='%s', email='%s', isGoogle=%s, active=%s}", 
+            userId, name, email, isGoogleUser, active);
+    }
+
+    /**
+     * 로컬 사용자인지 확인 (일반 회원가입)
+     * <p>
+     * 우리 시스템에는 두 종류의 사용자가 있습니다:
+     * - 로컬 사용자: 일반 회원가입으로 가입한 사용자 (비밀번호 있음)
+     * - Google 사용자: Google 소셜 로그인으로 가입한 사용자 (비밀번호 없음)
+     * 비밀번호 확인이 필요한지 판단할 때도 이 메서드를 사용할 수 있습니다.
+     * </p>
+     * @author wnwoghd
+     * @return Google 사용자가 아니면 true (즉, 일반 회원가입 사용자면 true)
+     */
+    public boolean isLocalUser() {
+        return !isGoogleUser; // Google 사용자가 아니다 = 로컬 사용자다
     }
 }

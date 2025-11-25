@@ -444,6 +444,108 @@ public class UserService {
     }
 
     /**
+     * 소셜 로그인 사용자를 저장하는 메서드
+     * <p>
+     * Google OAuth 등을 통해 가입하는 사용자를 저장한다.
+     * 로컬 계정과 달리 비밀번호가 없고, 소셜 제공자 정보가 포함된다.
+     * 로컬 사용자가 아닌 신규 소셜 로그인에 대한 정보를 담는 메서드
+     * </p>
+     * @author wnwoghd
+     * @param user 저장할 소셜 사용자 객체
+     * @return 저장 성공 시 true, 실패 시 false
+     */
+    public boolean saveSocialUser(User user) {
+        if (user == null) {
+            logger.error("소셜 사용자 저장 시도 - null 사용자 객체");
+            return false;
+        }
+
+        if (!user.isGoogleUser()) {
+            logger.error("소셜 사용자 저장 시도 - 로컬 사용자 객체: userId={}", user.getUserId());
+            return false;
+        }
+
+        logger.info("소셜 사용자 저장 시작: userId={}, email={}", 
+                   user.getUserId(), user.getEmail());
+
+        try {
+            // 사용자 ID 중복 확인 ID는 "google_{googleId}" 형식으로 생성되므로 중복 가능성 낮음
+            if (userDAO.findByUserId(user.getUserId()) != null) {
+                logger.warn("소셜 사용자 저장 실패 - 사용자 ID 중복: userId={}", user.getUserId());
+                return false;
+            }
+
+            // 소셜 사용자 저장
+            boolean saved = userDAO.save(user);
+            
+            if (saved) {
+                logger.info("소셜 사용자 저장 성공: userId={}", 
+                           user.getUserId());
+            } else {
+                logger.error("소셜 사용자 저장 실패 - DAO 오류: userId={}", user.getUserId());
+            }
+            
+            return saved;
+
+        } catch (Exception e) {
+            logger.error("소셜 사용자 저장 중 예외 발생: userId={}", user.getUserId(), e);
+            return false;
+        }
+    }
+
+    /**
+     * 기존 로컬 사용자를 Google 계정과 연동하는 메서드
+     * <p>
+     * 이미 로컬 계정을 가진 사용자가 Google 로그인을 추가로 연동할 때 사용한다.
+     * </p>
+     * 
+     * @param userId 연동할 로컬 사용자 ID
+     * @param googleId Google에서의 사용자 ID
+     * @return 연동 성공 시 true, 실패 시 false
+     */
+    public boolean linkGoogleAccount(String userId, String googleId) {
+        if (userId == null || googleId == null) {
+            logger.warn("Google 계정 연동 시도 - null 파라미터: userId={}, googleId={}", 
+                       userId, googleId);
+            return false;
+        }
+
+        logger.info("Google 계정 연동 시작: userId={}", userId);
+
+        try {
+            User user = userDAO.findByUserId(userId);
+            if (user == null) {
+                logger.warn("Google 계정 연동 실패 - 사용자 없음: userId={}", userId);
+                return false;
+            }
+
+            // 이미 Google 계정이 연동된 경우
+            if (user.isGoogleUser()) {
+                logger.warn("Google 계정 연동 실패 - 이미 연동됨: userId={}", userId);
+                return false;
+            }
+
+            // Google 정보 업데이트
+            user.setGoogleUser(true);
+            user.setGoogleId(googleId);
+
+            boolean updated = userDAO.save(user);
+            
+            if (updated) {
+                logger.info("Google 계정 연동 성공: userId={}", userId);
+            } else {
+                logger.error("Google 계정 연동 실패 - DAO 업데이트 오류: userId={}", userId);
+            }
+            
+            return updated;
+
+        } catch (Exception e) {
+            logger.error("Google 계정 연동 중 예외 발생: userId={}", userId, e);
+            return false;
+        }
+    }
+
+    /**
      * 등록된 전체 사용자 수를 조회하는 메서드
      * <p>
      * 관리자 대시보드나 통계 목적으로 사용한다.
