@@ -21,6 +21,13 @@ import { RoutineManager } from '../components/RoutineManager';
 import { Lightbulb, Shuffle, Trophy, Target } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
+import {
+    apiService,
+    SignupRequest,
+    LoginRequest,
+    LoginResponse
+} from "../services/api";
+
 
 // 루틴 인터페이스
 interface Routine {
