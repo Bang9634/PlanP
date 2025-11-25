@@ -107,6 +107,7 @@ export interface LoginResponse {
   };
 }
 
+
 export class ApiService {
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const url = `${API_BASE_URL}${endpoint}`;
@@ -193,7 +194,7 @@ export class ApiService {
     }
 
 
-  // 사용자 관리 API
+    // 사용자 관리 API
   async signup(data: SignupRequest): Promise<SignupResponse> {
     return this.request<SignupResponse>('/users/signup', {
       method: 'POST',
@@ -213,6 +214,8 @@ export class ApiService {
       method: 'POST',
     });
   }
+
+
 
   async checkUserId(userId: string): Promise<{ available: boolean; message: string }> {
     return this.request(`/users/check-id?userId=${encodeURIComponent(userId)}`);
