@@ -79,24 +79,31 @@ if (DEBUG) {
 }
 
 // 인터페이스 정의
+// 벡엔드는 인터페이스를 통해 아래의 내용을 확인 가능함.
+// 프론트에서 어떤 필드를 요구하는지
+// 필드 타입은 어떠한 형태인지?
+// 어떤 API가 어떤 데이터를 반환해야하는지
+// 프론트의 요구사항 명세서와 같은 역할
+
+// 회원가입 요청
 export interface SignupRequest {
-  userId: string;
-  password: string;
-  name: string;
-  email: string;
+  userId: string;    // 사용자 로그인 ID
+  password: string;  // 비밀번호 ( 서버에서 해싱)
+  name: string;      // 사용자 이름
+  email: string;     // 사용자 이메일
 }
-
+// 회원가입 응답
 export interface SignupResponse {
-  success: boolean;
-  message: string;
-  userId?: string;
+  success: boolean;  // 회원가입 성공 여부
+  message: string;   // 성공/실패 메세지
+  userId?: string;   // 생성된 사용자 ID(success 시)
 }
-
+// 로그인 요청
 export interface LoginRequest {
   userId: string;
   password: string;
 }
-
+// 로그인 응답
 export interface LoginResponse {
   success: boolean;
   message: string;
@@ -106,6 +113,70 @@ export interface LoginResponse {
     email: string;
   };
 }
+
+// 6) 내정보 (UserProfile)
+// /users/me API용
+// 프론트 MyAccoutPage에 데이터 구성에 사용할 요소
+export interface UserProfile {
+    userId: string;     // ID
+    name: string;       // 이름
+    email: string;      // 이메일
+    // 아래는 선택적 필드
+    // 시간없으면 빼야함
+    level?: number;     // 성취 레벨
+    points?: number;    // 성취 포인트
+}
+// 7) 활동기록
+export interface ActivityRecord {
+    id: string; // 활동 ID
+    title: string; // 활동 제목 (예시: 음악 감상)
+    category: string; // 카테고리 (music, daily, health 등등?)
+    date: string;       // 활동 수행일자 '2025-11-30' , 즉 완료 일자
+    duration?: string; // 선택 : 활동에 소요된 기간
+    isRoutine?: boolean; // 선택 : 루틴 기반 활동인지에 대한 여부
+    completed: boolean; // 완료 여부 (이건 선택이 아닐거같긴한데?)
+}
+// 8) 통계
+export interface ActivityStatistics {
+    weekly: {
+        day: string;  // 요일(월, 화, 수...)
+        completed: number; // 완료한 활동 수
+         missed: number; // 실패? 수행 못한 활동 수(건너뛴?)
+    }[];
+    categoryDistribution: {
+        name: string; // 카테고리 이름
+        value: number; // 비율 혹은 횟수
+        color: string; // 차트 표시 색상
+    }[];
+    totalActivities: number; // 전체 활동 개수
+    completedActivities: number; // 완료한 활동 개수
+    currentStreak: number; // 현재 연속 성공 일수
+    longestStreak: number; // 가장 길었던 연속 성공일
+    favoriteCategory: string; // 가장 많이 한 카테고리
+}
+
+// 9) 뱃지(필요함? ㅅㅂ) // 12.03 이건 빼자 :(
+export interface Achievement {
+    id: string;
+    title: string;
+    description: string;
+    icon: string;
+    earned: boolean;
+    earnedDate?: string; // '2025-11-30'
+    progress?: number;
+    target?: number;
+}
+// 10) 캘린더 (이건 필요할만도?)
+export interface CalendarDayActivity {
+    date: string; // '2025-11-30'
+    activities: {
+        id: string; // ID
+        title: string; // 활동 제목
+        category: string; // 활동 카테고리
+        completed: boolean; // 완료여부
+    }[];
+}
+
 
 
 export class ApiService {
@@ -176,17 +247,17 @@ export class ApiService {
       
       throw error;
     }
-  }// 이메일 전송 API
+  }
+
+  // 1) 이메일 전송 API
     async sendEmailCode(email: string): Promise<SignupResponse> {
-        console.log("📨 이메일 인증코드 전송 API 호출");
         return this.request<SignupResponse>("/users/send-email-code", {
             method: "POST",
             body: JSON.stringify({ email }),
         });
     }
-
+  // 2) 이메일 검증 API
     async verifyEmailCode(email: string, code: string): Promise<SignupResponse> {
-        console.log("🔍 이메일 인증코드 검증 API 호출");
         return this.request<SignupResponse>("/users/verify-email-code", {
             method: "POST",
             body: JSON.stringify({ email, code }),
@@ -194,7 +265,7 @@ export class ApiService {
     }
 
 
-    // 사용자 관리 API
+    // 3) 사용자 관리 API
   async signup(data: SignupRequest): Promise<SignupResponse> {
     return this.request<SignupResponse>('/users/signup', {
       method: 'POST',
@@ -202,30 +273,57 @@ export class ApiService {
     });
   }
 
+    // 4) 로그인 API
   async login(data: LoginRequest): Promise<LoginResponse> {
     return this.request<LoginResponse>('/users/login', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
-
+    // 5) 로그아웄 API
   async logout(): Promise<{ success: boolean; message: string }> {
     return this.request('/users/logout', {
       method: 'POST',
     });
   }
+    // 6) 내 정보 가져오는 API
+    async getMyProfile(): Promise<UserProfile> {
+        return this.request<UserProfile>("/users/me", {
+            method: "GET",
+        });
+    }
+
+    // 7) 내 활동기록 API
+    async getMyActivityHistory(): Promise<ActivityRecord[]> {
+        return this.request<ActivityRecord[]>("/users/me/activity-history", {
+            method: "GET",
+        });
+    }
+    // 8) 통계 API
+    async getMyStatistics(): Promise<ActivityStatistics> {
+        return this.request<ActivityStatistics>("/users/me/statistics", {
+            method: "GET",
+        });
+    }
+    // 9) 뱃지 API(진짜 필요하냐고?)
+    async getMyAchievements(): Promise<Achievement[]> {
+        return this.request<Achievement[]>("/users/me/achievements", {
+            method: "GET",
+        });
+    }
+
+    // 10) 캘린더 API
+    async getMyCalendar(year: number, month: number): Promise<CalendarDayActivity[]> {
+        const query = `?year=${year}&month=${month}`;
+        return this.request<CalendarDayActivity[]>(`/users/me/calendar${query}`, {
+            method: "GET",
+        });
+    }
 
 
 
-  async checkUserId(userId: string): Promise<{ available: boolean; message: string }> {
-    return this.request(`/users/check-id?userId=${encodeURIComponent(userId)}`);
-  }
 
-  async checkEmail(email: string): Promise<{ available: boolean; message: string }> {
-    return this.request(`/users/check-email?email=${encodeURIComponent(email)}`);
-  }
-
-  // Health Check
+    // Health Check
   async healthCheck(): Promise<string> {
     const healthUrl = API_BASE_URL.replace('/api', '') + '/health';
     
