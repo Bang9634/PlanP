@@ -149,8 +149,7 @@ export default function App() {
 
     const handleLogin = async (id: string, password: string) => {
         console.log("📨 로그인 요청:", { id, password });
-
-        // 백엔드 DTO 형태로 request body 구성
+        // 벡엔드 로그인 DTO(LoginRequest) 형식에 맞춘 데이터
         const loginData: LoginRequest = {
             userId: id,
             password: password,
@@ -160,14 +159,24 @@ export default function App() {
             const result: LoginResponse = await apiService.login(loginData);
 
             if (result.success) {
-                // 로그인 성공
                 alert(`🎉 ${result.user?.name || id}님 환영합니다!`);
 
                 setIsLoggedIn(true);
-                setCurrentUser(result.user?.userId || id); // 서버에서 받은 userId
+                // 핵심 : 로그인 성공 후 실제 사용자 정보를 백엔드에서 가져오기
+                // 로그인 api는 단순히 !로그인 성공 여부!만 보낼 수 있고
+                // 그래서 로그인 직후에 백엔드에게 다시 !내 정보 조회! 요청을 보내야함.
+
+                // api.ts에 .getMyProfile()
+                // => /users/me 엔드 포인트로 METHOD : GET 요청
+                const profile = await apiService.getMyProfile();
+                // 유저 전체 객체 저장 (문자열 X)
+                // MyAccountPage는 user,name,email등 정보가 필요함.
+                // serCurnentUser에 userID 필드를 사용할 시 ID가 뜨고
+                // name 필드 사용하면 이름 할건데 이것도 선택사항
+                setCurrentUser(profile.name);
+                // 홈화면 전환
                 setCurrentView("home");
             } else {
-                // 로그인 실패 메시지 반환
                 alert(`❌ 로그인 실패: ${result.message}`);
             }
         } catch (error) {
@@ -175,6 +184,7 @@ export default function App() {
             alert("서버와 연결할 수 없습니다. 잠시 후 다시 시도해주세요.");
         }
     };
+
 
     const handleSignup = async (
         id: string,
