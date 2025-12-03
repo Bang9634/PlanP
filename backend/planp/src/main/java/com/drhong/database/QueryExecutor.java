@@ -6,11 +6,12 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.drhong.dao.UserDAO;
+import com.drhong.repository.UserRepository;
 
 /**
  * 데이터베이스 쿼리 실행을 위한 클래스
@@ -75,7 +76,7 @@ import com.drhong.dao.UserDAO;
  * @since 2025-11-18
  * 
  * @see ConnectionManager
- * @see UserDAO
+ * @see UserRepository
  */
 public class QueryExecutor {
     private static final Logger logger = LoggerFactory.getLogger(QueryExecutor.class);
@@ -172,7 +173,7 @@ public class QueryExecutor {
      * @apiNote 여러 행이 조회되어도 첫 번째 행만 반환됨
      * @implNote ResultSet은 try-with-resources로 자동 close됨
      */
-    public <T> T executeQuerySingle(String sql, ResultSetMapper<T> mapper, Object... params) throws SQLException {
+    public <T> Optional<T> executeQuerySingle(String sql, ResultSetMapper<T> mapper, Object... params) throws SQLException {
         Connection conn = null;
         try {
             conn = connectionManager.getConnection();
@@ -180,9 +181,10 @@ public class QueryExecutor {
                 setParameters(pstmt, params);
                 try (ResultSet rs = pstmt.executeQuery()) {
                     if (rs.next()) {
-                        return mapper.map(rs);
+                        T result = mapper.map(rs);
+                        return Optional.ofNullable(result);
                     }
-                    return null;
+                    return Optional.empty();
                 }
             }
         } finally {

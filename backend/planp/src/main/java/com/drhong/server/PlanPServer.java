@@ -2,17 +2,16 @@ package com.drhong.server;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.drhong.config.EnvironmentConfig;
-import com.drhong.controller.UserController;
-import com.drhong.service.UserService;
 import com.sun.net.httpserver.HttpContext;
+import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 
 /**
@@ -30,15 +29,6 @@ import com.sun.net.httpserver.HttpServer;
  *   <li>CORS 정책 적용</li>
  *   <li>스레드 풀 기반 동시성 처리</li>
  *   <li>graceful 서버 시작/종료</li>
- * </ul>
- * 
- * <h3>제공하는 API 엔드포인트:</h3>
- * <ul>
- *   <li><code>GET /health</code> - 서버 상태 확인</li>
- *   <li><code>POST /api/users/signup</code> - 사용자 회원가입</li>
- *   <li><code>POST /api/users/login</code> - 사용자 로그인</li>
- *   <li><code>GET /api/users/check-id</code> - 사용자 ID 중복 확인</li>
- *   <li><code>GET /api/users/check-email</code> - 이메일 중복 확인</li>
  * </ul>
  * 
  * <h3>서버 설정:</h3>
@@ -67,7 +57,7 @@ import com.sun.net.httpserver.HttpServer;
  * @see com.sun.net.httpserver.HttpServer
  * @see com.drhong.controller.UserController
  * @see com.drhong.server.CorsFilter
- * @see com.drhong.server.HealthCheckHandler
+ * @see com.drhong.handler.HealthCheckHandler
  * 
  * @implNote Java 내장 HttpServer 사용
  */
@@ -84,6 +74,8 @@ public class PlanPServer {
     
     /** 서버 바인딩 포트 번호 */
     private final int port;
+
+    private final Map<String, HttpHandler> handlers;
     
     /** 스레드 풀 크기 (동시 처리 가능한 요청 수) */
     private static final int THREAD_POOL_SIZE = 10;
@@ -93,47 +85,19 @@ public class PlanPServer {
 
     /** 허용된 오리진 규칙 리스트 */
     private final List<String>allowedOrigins;
-    
-    /**
-     * PlanPServer 생성자
-     * <p>
-     * 지정된 호스트와 포트에 HTTP 서버를 생성하고, API 라우트를 설정한다.
-     * UserService를 주입받아 사용자 관련 API의 비즈니스 로직을 처리한다.
-     * </p>
-     * 
-     * <h4>초기화 과정:</h4>
-     * <ol>
-     *   <li>HttpServer 인스턴스 생성</li>
-     *   <li>UserController 초기화</li>
-     *   <li>API 라우트 및 CORS 필터 설정</li>
-     *   <li>스레드 풀 설정</li>
-     * </ol>
-     * 
-     * @param host 서버를 바인딩할 호스트 주소 (예: "localhost", "0.0.0.0")
-     * @param port 서버를 바인딩할 포트 번호 (예: 8080, 3000)
-     * @param userService 사용자 관련 비즈니스 로직을 처리하는 서비스
-     * 
-     * @throws IOException 서버 생성 중 네트워크 오류가 발생한 경우
-     * @throws IllegalArgumentException 잘못된 호스트나 포트가 제공된 경우
-     * 
-     * @implNote 서버는 생성만 되고 실제 시작은 start() 메서드 호출 시
-     */
-    public PlanPServer(String host, int port, UserService userService) throws IOException {
-        this.host = host;
-        this.port = port;
-        this.allowedOrigins = Arrays.asList(EnvironmentConfig.getAllowedOrigins());
-        logger.info("PlanP 서버 초기화 시작: {}:{}", host, port);
+
+    public PlanPServer(Builder builder) throws IOException {
+        this.host = builder.host;
+        this.port = builder.port;
+        this.allowedOrigins = builder.allowedOrigins;
+        this.handlers = builder.handlers;
         
-        // HTTP 서버 생성 (백로그 큐 크기는 기본값 0 사용)
+        logger.info("HMS Server 초기화 시작: {}:{}", host, port);
+        
         this.server = HttpServer.create(new InetSocketAddress(host, port), 0);
         
-        // 컨트롤러 초기화 - 의존성 주입을 통한 loose coupling
-        UserController userController = new UserController(userService);
+        setupRoutes();
         
-        // API 라우트 설정
-        setupRoutes(userController);
-        
-        // 고정 크기 스레드 풀 설정 - 동시 요청 처리 최적화
         server.setExecutor(Executors.newFixedThreadPool(THREAD_POOL_SIZE));
         
         logger.info("서버 초기화 완료: {}:{}, 스레드풀크기={}", host, port, THREAD_POOL_SIZE);
@@ -166,44 +130,19 @@ public class PlanPServer {
      * 
      * @implNote 새로운 API 추가 시 이 메서드에 라우트 설정을 추가해야 함
      */
-    private void setupRoutes(UserController userController) {
+    private void setupRoutes() {
         logger.info("API 라우트 설정 시작...");
         
         // CORS 필터 인스턴스 생성 (모든 API에서 재사용)
         CorsFilter corsFilter = new CorsFilter(allowedOrigins);
-        
-        // 헬스 체크 API - 서버 상태 모니터링용
-        HttpContext healthContext = server.createContext("/health", new HealthCheckHandler());
-        healthContext.getFilters().add(corsFilter);
-        logger.debug("헬스 체크 API 설정: GET /health");
-        
-        // 사용자 회원가입 API
-        HttpContext signupContext = server.createContext("/api/users/signup", userController::handleSignup);
-        signupContext.getFilters().add(corsFilter);
-        logger.debug("회원가입 API 설정: POST /api/users/signup");
-        
-        // 사용자 로그인 API
-        HttpContext loginContext = server.createContext("/api/users/login", userController::handleLogin);
-        loginContext.getFilters().add(corsFilter);
-        logger.debug("로그인 API 설정: POST /api/users/login");
-        
-        // 사용자 ID 중복 확인 API
-        HttpContext checkIdContext = server.createContext("/api/users/check-id", userController::handleCheckUserId);
-        checkIdContext.getFilters().add(corsFilter);
-        logger.debug("ID 중복 확인 API 설정: GET /api/users/check-id");
-        
-        // 이메일 중복 확인 API
-        HttpContext checkEmailContext = server.createContext("/api/users/check-email", userController::handleCheckEmail);
-        checkEmailContext.getFilters().add(corsFilter);
-        logger.debug("이메일 중복 확인 API 설정: GET /api/users/check-email");
-        
-        // 라우트 설정 완료 로그
+
+        handlers.forEach((path, handler) -> {
+            HttpContext context = server.createContext(path, handler);
+            context.getFilters().add(corsFilter);
+            logger.debug("라우트 설정: {}", path);
+        });
+
         logger.info("라우트 설정 완료:");
-        logger.info("  ├─ GET  /health                    → HealthCheckHandler (헬스 체크)");
-        logger.info("  ├─ POST /api/users/signup          → UserController::handleSignup (회원가입)");
-        logger.info("  ├─ POST /api/users/login           → UserController::handleLogin (로그인)");
-        logger.info("  ├─ GET  /api/users/check-id        → UserController::handleCheckUserId (ID 중복 확인)");
-        logger.info("  └─ GET  /api/users/check-email     → UserController::handleCheckEmail (이메일 중복 확인)");
         logger.info("모든 API에 CORS 필터 적용 완료 (localhost 개발 환경 허용)");
     }
     
@@ -328,5 +267,35 @@ public class PlanPServer {
     public String toString() {
         return String.format("PlanPServer{host='%s', port=%d, running=%s}", 
                            host, port, isRunning());
+    }
+    public static class Builder {
+        private String host;
+        private int port;
+        private List<String> allowedOrigins;
+        private final Map<String, HttpHandler> handlers = new HashMap<>();
+
+        public Builder host(String host) {
+            this.host = host;
+            return this;
+        }
+
+        public Builder port(int port) {
+            this.port = port;
+            return this;
+        }
+
+        public Builder allowedOrigins(List<String> origins) {
+            this.allowedOrigins = origins;
+            return this;
+        }
+        
+        public Builder addHandler(String path, HttpHandler handler) {
+            this.handlers.put(path, handler);
+            return this;
+        }
+        
+        public PlanPServer build() throws IOException {
+            return new PlanPServer(this);
+        }
     }
 }
