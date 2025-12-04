@@ -231,12 +231,18 @@ export default function App() {
     setSelectedCategory(null);
   };
 
+  // 뒤로가기 (메인 홈 화면)
+    const goBackToHome = () => {
+        setCurrentView("home");
+    };
+
   // 로그인 화면
   if (currentView === 'login') {
     return (
       <LoginForm
         onLogin={handleLogin}
         onSignupClick={() => setCurrentView('signup')}
+        onBackToHome={goBackToHome}
       />
     );
   }
@@ -247,6 +253,7 @@ export default function App() {
       <SignupForm
         onSignup={handleSignup}
         onLoginClick={() => setCurrentView('login')}
+        onBackToHome={goBackToHome}
       />
     );
   }
@@ -258,7 +265,7 @@ export default function App() {
         currentUser={currentUser || ''}
         completedPlans={completedPlans}
         routines={routines}
-        onBack={handleBackToHome}
+        onBackToHome={goBackToHome}
       />
     );
   }

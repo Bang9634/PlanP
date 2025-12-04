@@ -201,20 +201,6 @@ export class ApiService {
         ...options,
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        const error = new Error(`HTTP ${response.status}: ${errorText || response.statusText}`);
-        
-        if (DEBUG) {
-          console.error(`❌ API 에러: ${url}`, {
-            status: response.status,
-            statusText: response.statusText,
-            error: errorText
-          });
-        }
-        
-        throw error;
-      }
 
       const data = await response.json();
       

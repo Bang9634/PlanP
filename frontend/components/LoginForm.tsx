@@ -3,15 +3,16 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
-import { Lightbulb } from "lucide-react";
+import { Lightbulb, ArrowLeft } from "lucide-react";
 
 interface LoginFormProps {
     // LoginForm은 API를 호출하지 않고 사용자가 입력한 값만 App에게 전달한다.
     onLogin: (id: string, password: string) => void;
     onSignupClick: () => void;
+    onBackToHome: () => void;
 }
 
-export function LoginForm({ onLogin, onSignupClick }: LoginFormProps) {
+export function LoginForm({ onLogin, onSignupClick, onBackToHome }: LoginFormProps) {
     const [id, setId] = useState("");
     const [password, setPassword] = useState("");
 
@@ -32,11 +33,22 @@ export function LoginForm({ onLogin, onSignupClick }: LoginFormProps) {
         onLogin(id, password);
     };
 
-    return (
-        <div className="min-h-screen bg-background flex items-center justify-center px-4">
-            <div className="w-full max-w-md">
+    const handleGoogleLogin = () => {
 
-                {/* 로고 영역 */}
+    }
+    return (
+        <div className="min-h-screen bg-background flex items-center justify-center px-4 relative">
+
+            {/* 뒤로가기 버튼 */}
+            <div className="absolute top-0 left-0 p-4">
+                <Button variant="ghost" onClick={onBackToHome}>
+                    <ArrowLeft className="w-4 h-4 mr-2" />
+                    뒤로가기
+                </Button>
+            </div>
+
+            <div className="w-full max-w-md">
+                {/* 로고 */}
                 <div className="text-center mb-8">
                     <div className="flex items-center justify-center gap-2 mb-4">
                         <Lightbulb className="w-8 h-8 text-yellow-500" />
@@ -87,6 +99,7 @@ export function LoginForm({ onLogin, onSignupClick }: LoginFormProps) {
                             </Button>
                         </form>
 
+
                         {/* 회원가입 이동 */}
                         <div className="mt-6">
                             <p className="text-center text-sm text-muted-foreground">
@@ -102,7 +115,6 @@ export function LoginForm({ onLogin, onSignupClick }: LoginFormProps) {
                         </div>
                     </CardContent>
                 </Card>
-
             </div>
         </div>
     );
