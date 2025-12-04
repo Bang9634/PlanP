@@ -47,6 +47,7 @@ public class UserRepository {
      * 새로운 사용자 정보를 저장하는 메서드
      * <p>
      * 주어진 사용자 객체를 데이터베이스 users 테이블에 INSERT한다.
+     * 로컬 계정과 Google OAuth 계정 모두 지원한다.
      * </p>
      * @author wnwoghd
      * 
@@ -70,19 +71,19 @@ public class UserRepository {
             throw new IllegalArgumentException("사용자 ID, 이메일은 필수입니다");
         }
 
-        // SQL 쿼리: 새 사용자를 users 테이블에 삽입
-        // 매개변수: (user_id, email, name, password)
-        String sql = "INSERT INTO users (user_id, username, password_hash, email) VALUES (?, ?, ?, ?)";
+        // SQL 쿼리: Google ID 필드 포함하여 새 사용자를 users 테이블에 삽입
+        String sql = "INSERT INTO users (user_id, username, password_hash, email, google_id) VALUES (?, ?, ?, ?, ?)";
 
         try {
-            logger.debug("사용자 정보 sql문 실행: user_id={}, username={}, email={}",
-                user.getUserId(), user.getName(), user.getEmail()    
+            logger.debug("사용자 정보 sql문 실행: user_id={}, username={}, email={}, googleId={}",
+                user.getUserId(), user.getName(), user.getEmail(), user.getGoogleId()    
             );
             queryExecutor.executeUpdate(sql,
                 user.getUserId(),
                 user.getName(),
-                user.getPassword(),
-                user.getEmail()
+                user.getPassword(), // Google 계정의 경우 null일 수 있음
+                user.getEmail(),
+                user.getGoogleId()  // 로컬 계정의 경우 null일 수 있음
             );
             
             logger.info("사용자 저장: {}", user.getUserId());
@@ -113,7 +114,7 @@ public class UserRepository {
             throw new IllegalArgumentException("사용자 ID는 null이거나 빈 문자열일 수 없습니다");
         }
                 
-        String sql = "SELECT user_id, username, password_hash, email, created_at, is_active FROM users WHERE user_id = ?";
+        String sql = "SELECT user_id, username, password_hash, email, google_id, created_at, is_active FROM users WHERE user_id = ?";
         
         try {
             logger.debug("사용자 ID로 조회 시도: userId={}", userId);
@@ -151,7 +152,7 @@ public class UserRepository {
         }
         
         // [변경됨]: DB에서 해당 이메일의 사용자 정보를 조회하는 SQL 쿼리
-        String sql = "SELECT user_id, username, password_hash, email, created_at, is_active FROM users WHERE email = ?";
+        String sql = "SELECT user_id, username, password_hash, email, google_id, created_at, is_active FROM users WHERE email = ?";
         
         try {
             logger.debug("사용자 이메일로 조회 시도: email={}", email);
@@ -164,6 +165,43 @@ public class UserRepository {
             return user;
         } catch (SQLException e) {
             logger.warn("사용자 이메일로 조회 실패: email={}", email);
+            return Optional.empty();
+        }
+    }
+    
+    /**
+     * Google ID를 기준으로 사용자 정보를 조회하는 메서드
+     * <p>
+     * Google OAuth 로그인에서 사용되며, Google 계정과 연동된 사용자를 찾는다.
+     * 기존에 Google로 가입한 사용자인지 확인할 때 사용된다.
+     * </p>
+     * 
+     * @author wnwoghd
+     * 
+     * @param googleId 조회할 Google ID (null이거나 빈 문자열이면 안됨)
+     * @return 조회된 사용자 객체, 존재하지 않으면 Optional.empty()
+     * 
+     * @throws IllegalArgumentException googleId가 null이거나 빈 문자열인 경우
+     */
+    public Optional<User> findByGoogleId(String googleId) {
+        if (googleId == null || googleId.trim().isEmpty()) {
+            logger.warn("잘못된 Google ID로 조회 시도: googleId={}", googleId);
+            throw new IllegalArgumentException("Google ID는 null이거나 빈 문자열일 수 없습니다");
+        }
+        
+        String sql = "SELECT user_id, username, password_hash, email, google_id, created_at, is_active FROM users WHERE google_id = ?";
+        
+        try {
+            logger.debug("Google ID로 조회 시도: googleId={}", googleId);
+            Optional<User> user = queryExecutor.executeQuerySingle(sql, this::mapToUser, googleId);
+            if (user.isEmpty()) {
+                logger.debug("Google ID로 사용자를 찾을 수 없음");
+            } else {
+                logger.debug("Google ID로 조회 성공: email={}", user.get().getEmail());
+            }
+            return user;
+        } catch (SQLException e) {
+            logger.warn("Google ID로 조회 실패: googleId={}", googleId);
             return Optional.empty();
         }
     }
@@ -183,7 +221,7 @@ public class UserRepository {
         logger.debug("전체 사용자 조회 요청");
         
         // 모든 사용자 레코드를 조회하는 SQL
-        String sql = "SELECT user_id, email, username, password_hash, created_at, is_active FROM users";
+        String sql = "SELECT user_id, email, username, password_hash, google_id, created_at, is_active FROM users";
         
         try  {
             List<User>allUsers = queryExecutor.executeQueryList(sql, this::mapToUser);
@@ -293,6 +331,7 @@ public class UserRepository {
             user.setName(rs.getString("username"));
             user.setPassword(rs.getString("password_hash"));
             user.setEmail(rs.getString("email"));
+            user.setGoogleId(rs.getString("google_id")); // Google ID 매핑 추가
             user.setCreatedAt(rs.getTimestamp("created_at").toLocalDateTime());
             user.setActive(rs.getBoolean("is_active"));
         } catch (SQLException e) {

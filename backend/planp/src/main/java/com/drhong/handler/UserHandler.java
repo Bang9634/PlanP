@@ -4,6 +4,7 @@ import java.io.IOException;
 
 import com.drhong.controller.UserController;
 import com.drhong.dto.ApiResponse;
+import com.drhong.dto.GoogleLoginRequest;
 import com.drhong.dto.LoginRequest;
 import com.drhong.dto.SignupRequest;
 import com.sun.net.httpserver.HttpExchange;
@@ -19,6 +20,7 @@ public class UserHandler extends BaseHandler {
     protected void registerRoutes() {
         post("/signup", this::handleSignup);
         post("/login", this::handleLogin);
+        post("/auth/google", this::handleGoogleLogin);
     }
 
     @Override
@@ -70,6 +72,25 @@ public class UserHandler extends BaseHandler {
         } catch (Exception e) {
             logger.error("로그인 처리 중 오류", e);
             sendErrorResponse(exchange, 500, "서버 오류가 발생했습니다.");        
+        }
+    }
+    
+    private void handleGoogleLogin(HttpExchange exchange) throws IOException {
+        logger.debug("Google OAuth 로그인 시도");
+        try {
+            String requestBody = readRequestBody(exchange);
+            GoogleLoginRequest request = gson.fromJson(requestBody, GoogleLoginRequest.class);
+
+            ApiResponse<?> response = userController.googleLogin(request);
+
+            if (response.isSuccess()) {
+                sendSuccessResponse(exchange, response);
+            } else {
+                sendErrorResponse(exchange, 400, response.getMessage());
+            }
+        } catch (Exception e) {
+            logger.warn("Google OAuth 로그인 중 오류 발생", e);
+            sendErrorResponse(exchange, 500, "Google 로그인 처리 중 오류가 발생했습니다");
         }
     }
 }

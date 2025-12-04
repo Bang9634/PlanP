@@ -12,6 +12,7 @@ import com.drhong.database.QueryExecutor;
 import com.drhong.handler.HealthCheckHandler;
 import com.drhong.handler.UserHandler;
 import com.drhong.repository.UserRepository;
+import com.drhong.service.GoogleOAuthService;
 import com.drhong.service.UserService;
 
 
@@ -23,6 +24,9 @@ public class ApplicationContext{
     private final QueryExecutor queryExecutor;
 
     private final HealthCheckHandler healthCheckHandler;
+
+    // OAuth 관련 의존성
+    private final GoogleOAuthService googleOAuthService;
 
     private final UserRepository userRepository;
     private final UserService userService;
@@ -38,10 +42,15 @@ public class ApplicationContext{
 
             this.healthCheckHandler = new HealthCheckHandler();
 
-            // 사용자
+            // 사용자 관련 의존성
             this.userRepository = new UserRepository(queryExecutor);
             this.userService = new UserService(userRepository);
-            this.userController = new UserController(userService);
+            
+            // OAuth 관련 의존성 (순환 참조 방지를 위해 UserService와 분리)
+            this.googleOAuthService = new GoogleOAuthService();
+            
+            // 컨트롤러 및 핸들러
+            this.userController = new UserController(userService, googleOAuthService);
             this.userHandler = new UserHandler(userController);
 
         logger.debug("의존성 초기화 완료");

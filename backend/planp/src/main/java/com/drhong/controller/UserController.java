@@ -9,16 +9,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.drhong.dto.ApiResponse;
+import com.drhong.dto.GoogleLoginRequest;
+import com.drhong.dto.GoogleUser;
 import com.drhong.dto.LoginRequest;
 import com.drhong.dto.SignupRequest;
 import com.drhong.model.User;
+import com.drhong.service.GoogleOAuthService;
 import com.drhong.service.UserService;
 
 /**
  * 사용자 관련 HTTP 요청 처리 컨트롤러
  * <p>
  * 사용자 인증 및 관리와 관련된 모든 HTTP 엔드포인트를 담당한다.
- * 회원가입, 로그인, 중복 확인 등의 기능을 제공한다.
+ * 회원가입, 로그인, Google OAuth 로그인, 중복 확인 등의 기능을 제공한다.
  * </p>
  * 
  * @author bang9634
@@ -32,13 +35,18 @@ public class UserController {
     /** 사용자 비즈니스 로직 처리 서비스 */
     private final UserService userService;
     
+    /** Google OAuth 처리 서비스 */
+    private final GoogleOAuthService googleOAuthService;
+    
     /**
      * UserController 객체를 생성하는 생성자
      * 
      * @param userService 사용자 관련 비즈니스 로직을 처리하는 서비스 객체
+     * @param googleOAuthService Google OAuth 처리 서비스 객체
      */
-    public UserController(UserService userService) {
+    public UserController(UserService userService, GoogleOAuthService googleOAuthService) {
         this.userService = userService;
+        this.googleOAuthService = googleOAuthService;
     }
     
 
@@ -94,5 +102,78 @@ public class UserController {
             return ApiResponse.fail(e.getMessage());
         }
 
+    }
+    
+    /**
+     * Google OAuth 로그인 요청을 처리하는 메서드
+     * <p>
+     * 프론트엔드에서 받은 Google Access Token으로 OAuth 로그인을 처리한다.
+     * 입력 검증은 서비스 계층에 위임하여 중복을 제거한다.
+     * </p>
+     * 
+     * <h3>플로우</h3>
+     * <ol>
+     *   <li>GoogleOAuthService: 토큰 검증 + 사용자 정보 조회</li>
+     *   <li>UserService: 로그인/회원가입 비즈니스 로직</li>
+     *   <li>HTTP 응답 변환</li>
+     * </ol>
+     * 
+     * @param request Google 로그인 요청 (accessToken 포함)
+     * @return 로그인 성공 시 사용자 정보, 실패 시 오류 메시지
+     */
+    public ApiResponse<?> googleLogin(GoogleLoginRequest request) {
+        logger.info("Google OAuth 로그인 요청 시작");
+        
+        try {
+            // 요청 및 토큰 유효성 검증
+            if (request == null) {
+                logger.warn("Google 로그인 요청 객체가 null입니다");
+                return ApiResponse.fail("잘못된 요청입니다");
+            }
+            
+            if (request.getAccessToken() == null || request.getAccessToken().trim().isEmpty()) {
+                logger.warn("Google Access Token이 비어있습니다");
+                return ApiResponse.fail("Google Access Token이 필요합니다");
+            }
+            
+            // 1. Google Access Token 검증 및 사용자 정보 조회 (서비스에 위임)
+            GoogleUser googleUser = googleOAuthService.verifyToken(request.getAccessToken());
+            if (googleUser == null) {
+                logger.warn("Google 토큰 검증 실패");
+                return ApiResponse.fail("Google 인증에 실패했습니다. 다시 시도해주세요.");
+            }
+            
+            logger.debug("Google 사용자 정보 조회 성공: email={}", googleUser.getEmail());
+            
+            // 2. UserService를 통한 비즈니스 로직 처리 (로그인/회원가입)
+            User user = userService.googleLogin(
+                googleUser.getId(),
+                googleUser.getEmail(), 
+                googleUser.getName()
+            );
+            
+            // 3. 성공 응답 생성
+            Map<String, Object> data = new HashMap<>();
+            data.put("userId", user.getUserId());
+            data.put("email", user.getEmail());
+            data.put("name", user.getName());
+            data.put("loginType", "google");
+            
+            logger.info("Google OAuth 처리 성공: email={}", user.getEmail());
+            return ApiResponse.success("인증 성공", data);
+            
+        } catch (IllegalArgumentException e) {
+            logger.warn("Google OAuth 요청 파라미터 오류: {}", e.getMessage());
+            return ApiResponse.fail(e.getMessage());
+            
+        } catch (RuntimeException e) {
+            // 이메일 중복 등의 비즈니스 로직 오류
+            logger.warn("Google OAuth 비즈니스 로직 오류: {}", e.getMessage());
+            return ApiResponse.fail(e.getMessage());
+            
+        } catch (Exception e) {
+            logger.error("Google OAuth 처리 중 예상치 못한 오류", e);
+            return ApiResponse.fail("로그인 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+        }
     }
 }

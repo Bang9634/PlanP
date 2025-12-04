@@ -18,6 +18,7 @@ public class User {
     private String password;        // 사용자의 비밀번호. 데이터베이스에 전송할 땐 해싱해서 보낸다.
     private String name;            // 사용자의 이름
     private String email;           // 사용자의 이메일
+    private String googleId;        // 구글 계정 연동을 위한 구글 ID
     private LocalDateTime createdAt;// 계정 생성 날짜
     private boolean active;         // 계정 활성화 여부
 
@@ -69,6 +70,9 @@ public class User {
 
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
+
+    public String getGoogleId() { return googleId; }
+    public void setGoogleId(String googleId) { this.googleId = googleId; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
