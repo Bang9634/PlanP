@@ -62,27 +62,17 @@ import com.sun.net.httpserver.HttpServer;
  * @implNote Java 내장 HttpServer 사용
  */
 public class PlanPServer {
-    
     /** SLF4J 로거 인스턴스 - 서버 시작/종료 및 라우팅 설정 로깅 */
     private static final Logger logger = LoggerFactory.getLogger(PlanPServer.class);
-    
-    /** Java 내장 HTTP 서버 인스턴스 */
     private final HttpServer server;
-    
-    /** 서버 바인딩 호스트 주소 */
-    private final String host;
-    
-    /** 서버 바인딩 포트 번호 */
-    private final int port;
+    private final String host; /** 서버 바인딩 호스트 주소 */
+    private final int port; /** 서버 바인딩 포트 번호 */
+    private final Map<String, RouteConfig> routes;
 
-    private final Map<String, HttpHandler> handlers;
-    
     /** 스레드 풀 크기 (동시 처리 가능한 요청 수) */
     private static final int THREAD_POOL_SIZE = 10;
-    
     /** 서버 종료 시 대기 시간 (초) */
     private static final int SHUTDOWN_DELAY_SECONDS = 3;
-
     /** 허용된 오리진 규칙 리스트 */
     private final List<String>allowedOrigins;
 
@@ -90,7 +80,7 @@ public class PlanPServer {
         this.host = builder.host;
         this.port = builder.port;
         this.allowedOrigins = builder.allowedOrigins;
-        this.handlers = builder.handlers;
+        this.routes = builder.routes;
         
         logger.info("HMS Server 초기화 시작: {}:{}", host, port);
         
@@ -131,15 +121,21 @@ public class PlanPServer {
      * @implNote 새로운 API 추가 시 이 메서드에 라우트 설정을 추가해야 함
      */
     private void setupRoutes() {
-        logger.info("API 라우트 설정 시작...");
+        logger.info("API 라우트 및 필터 설정 시작...");
         
         // CORS 필터 인스턴스 생성 (모든 API에서 재사용)
         CorsFilter corsFilter = new CorsFilter(allowedOrigins);
 
-        handlers.forEach((path, handler) -> {
-            HttpContext context = server.createContext(path, handler);
+        routes.forEach((path, config) -> {
+            HttpContext context = server.createContext(path, config.handler);
             context.getFilters().add(corsFilter);
-            logger.debug("라우트 설정: {}", path);
+
+            if (config.requireAuth && config.authFilter != null) {
+                context.getFilters().add(config.authFilter);
+                logger.debug("라우트 설정: {} (CORS + 인증필터)", path);
+            } else {
+                logger.debug("라우트 설정: {}", path);
+            }
         });
 
         logger.info("라우트 설정 완료:");
@@ -268,11 +264,35 @@ public class PlanPServer {
         return String.format("PlanPServer{host='%s', port=%d, running=%s}", 
                            host, port, isRunning());
     }
+
+    public static class RouteConfig {
+        private final HttpHandler handler;
+        private final boolean requireAuth;
+        private final AuthenticationFilter authFilter;
+
+        /**
+         * 인증이 필요한 라우트
+         */
+        public RouteConfig(HttpHandler handler, AuthenticationFilter authFilter) {
+            this.handler = handler;
+            this.requireAuth = true;
+            this.authFilter = authFilter;
+        }
+
+        /**
+         * 인증이 필요 없는 라우트 (공개)
+         */
+        public RouteConfig(HttpHandler handler) {
+            this.handler = handler;
+            this.requireAuth = false;
+            this.authFilter = null;
+        }
+    }
     public static class Builder {
         private String host;
         private int port;
         private List<String> allowedOrigins;
-        private final Map<String, HttpHandler> handlers = new HashMap<>();
+        private final Map<String, RouteConfig> routes = new HashMap<>();
 
         public Builder host(String host) {
             this.host = host;
@@ -288,9 +308,14 @@ public class PlanPServer {
             this.allowedOrigins = origins;
             return this;
         }
-        
-        public Builder addHandler(String path, HttpHandler handler) {
-            this.handlers.put(path, handler);
+
+        public Builder addProtectedRoute(String path, HttpHandler handler, AuthenticationFilter authFilter) {
+            this.routes.put(path, new RouteConfig(handler, authFilter));
+            return this;
+        }
+
+        public Builder addPublicRoute(String path, HttpHandler handler) {
+            this.routes.put(path, new RouteConfig(handler));
             return this;
         }
         

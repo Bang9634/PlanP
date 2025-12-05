@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { CategorySelector } from '../components/CategorySelector';
 import { SubCategorySelector } from '../components/SubCategorySelector';
 import { ArtistSearchActivity } from '../components/ArtistSearchActivity';
@@ -27,6 +27,7 @@ import {
     LoginRequest,
     LoginResponse
 } from "../services/api";
+import { AuthService } from '../services/AuthService';
 
 
 // 루틴 인터페이스
@@ -145,7 +146,18 @@ export default function App() {
     handleBackToHome();
   };
 
-
+  // 컴포넌트 마운트 시 저장된 토큰으로 자동 로그인
+  useEffect(() => {
+    if (AuthService.isAuthenticated()) {
+      const userInfo = AuthService.getUserInfo();
+      
+      if (userInfo) {
+        setIsLoggedIn(true);
+        setCurrentUser(userInfo.userId);
+        console.log('저장된 세션으로 자동 로그인:', userInfo.userId);
+      }
+    }
+  }, []);
 
     const handleLogin = async (id: string, password: string) => {
         console.log("📨 로그인 요청:", { id, password });
@@ -214,11 +226,19 @@ export default function App() {
         }
     };
 
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-    setCurrentUser(null);
-    setCurrentView('home');
-    setSelectedCategory(null);
+  const handleLogout = async () => {
+    try {
+      // 서버에 로그아웃 요청 (토큰 무효화)
+      await apiService.logout();
+    } catch (error) {
+      console.error('로그아웃 오류:', error);
+    } finally {
+      // 로컬 상태 초기화
+      setIsLoggedIn(false);
+      setCurrentUser(null);
+      setCurrentView('home');
+      setSelectedCategory(null);
+    }
   };
 
   // 로그인 화면

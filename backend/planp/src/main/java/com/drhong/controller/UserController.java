@@ -10,8 +10,10 @@ import org.slf4j.LoggerFactory;
 
 import com.drhong.dto.ApiResponse;
 import com.drhong.dto.LoginRequest;
+import com.drhong.dto.LogoutRequest;
 import com.drhong.dto.SignupRequest;
 import com.drhong.model.User;
+import com.drhong.service.JwtService;
 import com.drhong.service.UserService;
 
 /**
@@ -31,14 +33,16 @@ public class UserController {
     
     /** 사용자 비즈니스 로직 처리 서비스 */
     private final UserService userService;
+    private final JwtService jwtService;
     
     /**
      * UserController 객체를 생성하는 생성자
      * 
      * @param userService 사용자 관련 비즈니스 로직을 처리하는 서비스 객체
      */
-    public UserController(UserService userService) {
+    public UserController(UserService userService, JwtService jwtService) {
         this.userService = userService;
+        this.jwtService = jwtService;
     }
     
 
@@ -53,8 +57,13 @@ public class UserController {
             //     notificationService.notifyAdmins(request.getUserId());
             // }
 
+            String accessToken = jwtService.generateAccessToken(user.get());
+            String refreshToken = jwtService.generateRefreshToken(user.get().getUserId());
+
             Map<String, Object> data = new HashMap<>();
             data.put("userId", user.get().getUserId());
+            data.put("accessToken", accessToken);
+            data.put("refreshToken", refreshToken);
 
             return ApiResponse.success("회원가입이 완료되었습니다.", data);
         } catch (RuntimeException e) {
@@ -85,14 +94,32 @@ public class UserController {
             if (user.isEmpty()) {
                 return ApiResponse.fail("로그인 실패");
             }
+            String accessToken = jwtService.generateAccessToken(user.get());
+            String refreshToken = jwtService.generateRefreshToken(user.get().getUserId());
+
             Map<String, Object> data = new HashMap<>();
             data.put("userId", user.get().getUserId());
             data.put("name", user.get().getName());
+            data.put("accessToken", accessToken);
+            data.put("refreshToken", refreshToken);
             
             return ApiResponse.success("로그인 성공", data);
         } catch (RuntimeException e) {
             return ApiResponse.fail(e.getMessage());
         }
+    }
 
+    public ApiResponse<?> logout(LogoutRequest request) {
+        logger.debug("로그아웃 시작: userId={}", request.getUserId());
+        try {
+            Optional<User> user = userService.logout(request.getUserId());
+            if (user.isEmpty()) {
+                return ApiResponse.fail("사용자가 존재하지 않습니다.");
+            }
+   
+            return ApiResponse.success("로그아웃 성공");
+        } catch (RuntimeException e) {
+            return ApiResponse.fail(e.getMessage());
+        }
     }
 }

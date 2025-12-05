@@ -12,15 +12,19 @@ import com.drhong.database.QueryExecutor;
 import com.drhong.handler.HealthCheckHandler;
 import com.drhong.handler.UserHandler;
 import com.drhong.repository.UserRepository;
+import com.drhong.server.AuthenticationFilter;
+import com.drhong.service.JwtService;
 import com.drhong.service.UserService;
-
-
 public class ApplicationContext{
     protected final Logger logger = LoggerFactory.getLogger(getClass());
     
     private final DatabaseConfig databaseConfig;
     private final ConnectionManager connectionManager;
     private final QueryExecutor queryExecutor;
+
+    private final AuthenticationFilter authenticationFilter;
+
+    private final JwtService jwtService;
 
     private final HealthCheckHandler healthCheckHandler;
 
@@ -38,13 +42,23 @@ public class ApplicationContext{
 
             this.healthCheckHandler = new HealthCheckHandler();
 
-            // 사용자
+            // 레포지토리 계층
             this.userRepository = new UserRepository(queryExecutor);
+
+            // 서비스 계층
+            this.jwtService = new JwtService();
             this.userService = new UserService(userRepository);
-            this.userController = new UserController(userService);
+            
+            // 컨트롤러 계층
+            this.userController = new UserController(userService, jwtService);
+
+            // 핸들러 계층
             this.userHandler = new UserHandler(userController);
 
-        logger.debug("의존성 초기화 완료");
+            // 필터 계층
+            this.authenticationFilter = new AuthenticationFilter(jwtService);
+
+            logger.debug("의존성 초기화 완료");
         } catch (Exception e) {
             logger.error("의존성 초기화 실패", e);
             throw new RuntimeException("의존성 초기화 실패", e);
@@ -54,6 +68,7 @@ public class ApplicationContext{
     public DatabaseConfig getDatabaseConfig() { return databaseConfig; }
     public UserHandler getUserHandler() { return userHandler; }
     public HealthCheckHandler getHealthCheckHandler() { return healthCheckHandler; }
+    public AuthenticationFilter getAuthenticationFilter() { return authenticationFilter; }
 
     public void shutdown() throws SQLException {
         try {

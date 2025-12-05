@@ -5,6 +5,7 @@ import java.io.IOException;
 import com.drhong.controller.UserController;
 import com.drhong.dto.ApiResponse;
 import com.drhong.dto.LoginRequest;
+import com.drhong.dto.LogoutRequest;
 import com.drhong.dto.SignupRequest;
 import com.sun.net.httpserver.HttpExchange;
 
@@ -70,6 +71,23 @@ public class UserHandler extends BaseHandler {
         } catch (Exception e) {
             logger.error("로그인 처리 중 오류", e);
             sendErrorResponse(exchange, 500, "서버 오류가 발생했습니다.");        
+        }
+    }
+
+    private void handleLogout(HttpExchange exchange) throws IOException {
+        try {
+            String requestBody = readRequestBody(exchange);
+            LogoutRequest request = gson.fromJson(requestBody, LogoutRequest.class);
+            if (request == null) {
+                sendErrorResponse(exchange, 400, "잘못된 요청 형식");
+                return;
+            }
+            ApiResponse<?> response = userController.logout(request);
+            int statusCode = response.isSuccess() ? 200 : 400;
+            sendResponse(exchange, statusCode, response);
+        } catch (Exception e) {
+            logger.error("로그아웃 처리 중 오류", e);
+            sendErrorResponse(exchange, 500, "서버 오류가 발생했습니다.");
         }
     }
 }

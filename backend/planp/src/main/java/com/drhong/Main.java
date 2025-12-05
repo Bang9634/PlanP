@@ -143,8 +143,8 @@ public class Main {
             PlanPServer server = new PlanPServer.Builder()
                 .host(host).port(port)
                 .allowedOrigins(Arrays.asList(EnvironmentConfig.getAllowedOrigins()))
-                .addHandler("/health", applicationContext.getHealthCheckHandler())
-                .addHandler("/api/users", applicationContext.getUserHandler())
+                .addPublicRoute("/health", applicationContext.getHealthCheckHandler())
+                .addProtectedRoute("/api/users", applicationContext.getUserHandler(), applicationContext.getAuthenticationFilter())
                 .build();
 
 

@@ -188,24 +188,42 @@ public class UserService {
         }
 
         logger.debug("로그인 시도: userId={}", userId);
-      
-            // 사용자 조회
-            Optional<User> user = userRepository.findByUserId(userId);
-            if (user.isEmpty()) {
-                logger.debug("로그인 실패 - 사용자 없음: userId={}", userId);
-                throw new RuntimeException("사용자가 존재하지 않습니다.");
-            }
-            
-            // 비밀번호 검증
-            boolean isValid = PasswordUtil.verify(password, user.get().getPassword());
-            
-            if (isValid) {
-                logger.info("로그인 성공: userId={}", userId);
-                return user;
-            } else {
-                logger.warn("로그인 실패 - 비밀번호 불일치: userId={}", userId);
-                throw new RuntimeException("비밀번호가 일치하지 않습니다.");
-            }
+    
+        // 사용자 조회
+        Optional<User> user = userRepository.findByUserId(userId);
+        if (user.isEmpty()) {
+            logger.debug("로그인 실패 - 사용자 없음: userId={}", userId);
+            throw new RuntimeException("사용자가 존재하지 않습니다.");
+        }
+        
+        // 비밀번호 검증
+        boolean isValid = PasswordUtil.verify(password, user.get().getPassword());
+        
+        if (isValid) {
+            logger.info("로그인 성공: userId={}", userId);
+            return user;
+        } else {
+            logger.warn("로그인 실패 - 비밀번호 불일치: userId={}", userId);
+            throw new RuntimeException("비밀번호가 일치하지 않습니다.");
+        }
+    }
+
+    
+    public Optional<User> logout(String userId) {
+        if (userId == null) {
+            logger.warn("로그아웃 시도 - null 파라미터: userId={}", userId);
+            throw new RuntimeException("null 파라미터 입력");
+        }
+
+        logger.debug("로그아웃 시도: userId={}", userId);
+
+        Optional<User> user = userRepository.findByUserId(userId);
+        if (user.isEmpty()) {
+            logger.debug("로그아웃 실패 - 사용자 없음: userId={}", userId);
+            throw new RuntimeException("사용자가 존재하지 않습니다.");
+        }
+        logger.info("로그아웃 성공: userId={}", userId);
+        return user;
     }
 
     /**

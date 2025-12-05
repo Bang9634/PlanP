@@ -37,6 +37,7 @@ public abstract class BaseHandler implements HttpHandler {
      * 자식 클래스에서 registerRoutes()를 호출하여 라우트를 등록해야 한다.
      * </p>
      */
+    @SuppressWarnings("") 
     public BaseHandler() {
         registerRoutes();
     }
