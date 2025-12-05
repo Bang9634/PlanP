@@ -116,7 +116,9 @@ export interface LoginResponse {
 
 
 export class ApiService {
-
+// 세번째 매개변수 requireAuth는 인증 상태를 요구하느냐를 의미함
+// 기본값은 false로 로그인, 회원가입과 같은 api를 호출할때는 로그인 상태가 아니기에 false,
+// 로그아웃이나 내 정보 보기와 같은 api를 호출할 때는 로그인 상태를 요구하기에 true가 되어야함.
   private async request<T>(endpoint: string, options: RequestInit = {}, requiresAuth: boolean = false ): Promise<T> {
     const url = `${API_BASE_URL}${endpoint}`;
     
