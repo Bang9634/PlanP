@@ -13,6 +13,7 @@ import com.drhong.handler.HealthCheckHandler;
 import com.drhong.handler.UserHandler;
 import com.drhong.repository.UserRepository;
 import com.drhong.server.AuthenticationFilter;
+import com.drhong.service.GoogleOAuthService;
 import com.drhong.service.JwtService;
 import com.drhong.service.UserService;
 public class ApplicationContext{
@@ -28,6 +29,9 @@ public class ApplicationContext{
 
     private final HealthCheckHandler healthCheckHandler;
 
+    // OAuth 관련 의존성
+    private final GoogleOAuthService googleOAuthService;
+
     private final UserRepository userRepository;
     private final UserService userService;
     private final UserController userController;
@@ -40,19 +44,19 @@ public class ApplicationContext{
             this.connectionManager = ConnectionManager.getInstance(databaseConfig);
             this.queryExecutor = new QueryExecutor(connectionManager);
 
-            this.healthCheckHandler = new HealthCheckHandler();
-
             // 레포지토리 계층
             this.userRepository = new UserRepository(queryExecutor);
-
+            
             // 서비스 계층
             this.jwtService = new JwtService();
             this.userService = new UserService(userRepository);
+            this.googleOAuthService = new GoogleOAuthService();
             
             // 컨트롤러 계층
-            this.userController = new UserController(userService, jwtService);
+            this.userController = new UserController(userService, jwtService,googleOAuthService);
 
             // 핸들러 계층
+            this.healthCheckHandler = new HealthCheckHandler();
             this.userHandler = new UserHandler(userController);
 
             // 필터 계층

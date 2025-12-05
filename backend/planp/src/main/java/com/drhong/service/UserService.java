@@ -376,4 +376,89 @@ public class UserService {
         
         logger.info("사용자 저장소 디버깅 완료: 총 {}명의 사용자 정보 출력", userRepository.count());
     }
+    
+    /**
+     * Google OAuth 로그인/회원가입을 처리하는 메서드
+     * 
+     * @param googleId Google에서 제공하는 사용자 고유 ID
+     * @param email 사용자 이메일
+     * @param name 사용자 이름
+     * @return 로그인된 또는 새로 생성된 User 객체
+     * @throws RuntimeException 이메일 중복 또는 DB 오류 시
+     */
+    public User googleLogin(String googleId, String email, String name) {
+        logger.info("Google OAuth 로그인/회원가입 처리 시작: email={}", email);
+        
+        // 입력 유효성 검증
+        if (googleId == null || googleId.trim().isEmpty()) {
+            throw new IllegalArgumentException("Google ID는 필수입니다");
+        }
+        if (email == null || email.trim().isEmpty()) {
+            throw new IllegalArgumentException("이메일은 필수입니다");
+        }
+        if (name == null || name.trim().isEmpty()) {
+            throw new IllegalArgumentException("이름은 필수입니다");
+        }
+        
+        try {
+            // 1. 기존 Google 계정 확인
+            Optional<User> existingGoogleUser = userRepository.findByGoogleId(googleId);
+            if (existingGoogleUser.isPresent()) {
+                logger.info("기존 Google 계정으로 로그인: email={}", email);
+                return existingGoogleUser.get();
+            }
+            
+            // 2. 이메일 중복 확인 (다른 계정에서 사용중인지)
+            Optional<User> existingEmailUser = userRepository.findByEmail(email);
+            if (existingEmailUser.isPresent()) {
+                logger.warn("이메일 중복: 이미 다른 계정에서 사용중 - email={}", email);
+                throw new RuntimeException("이 이메일은 이미 가입되어 있습니다. 다른 방법으로 로그인해주세요.");
+            }
+            
+            // 3. 신규 Google 계정 생성
+            logger.info("신규 Google 계정 생성 시작: email={}", email);
+            
+            User newUser = new User();
+            newUser.setUserId(generateUniqueUserId(email));
+            newUser.setEmail(email);
+            newUser.setName(name);
+            newUser.setPassword(""); // Google 계정은 비밀번호 불필요
+            newUser.setGoogleId(googleId);
+            newUser.setActive(true); // Google 인증 사용자는 즉시 활성화
+            
+            userRepository.save(newUser);
+            logger.info("Google 계정 회원가입 완료: email={}", email);
+            return newUser;
+            
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Exception e) {
+            logger.error("Google OAuth 처리 중 예상치 못한 오류: email={}", email, e);
+            throw new RuntimeException("로그인 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+        }
+    }
+    
+    /**
+     * 이메일 기반으로 고유한 사용자 ID를 생성하는 메서드
+     */
+    private String generateUniqueUserId(String email) {
+        String baseId = email.split("@")[0];
+        baseId = baseId.replaceAll("[^a-zA-Z0-9]", "").toLowerCase();
+        
+        // 최대 15자로 제한
+        if (baseId.length() > 15) {
+            baseId = baseId.substring(0, 15);
+        }
+        
+        String candidateId = "user_" + baseId;
+        int counter = 1;
+        
+        // 중복 확인 후 고유한 ID 생성
+        while (userRepository.findByUserId(candidateId).isPresent()) {
+            candidateId = "user_" + baseId + "_" + counter;
+            counter++;
+        }
+        
+        return candidateId;
+    }
 }
