@@ -268,9 +268,10 @@ public class DatabaseInitializer {
                 CREATE TABLE IF NOT EXISTS users (
                     user_id VARCHAR(50) PRIMARY KEY,
                     username VARCHAR(100) NOT NULL,
-                    password_hash VARCHAR(255) NOT NULL,
+                    password_hash VARCHAR(255) NULL,
                     email VARCHAR(255) UNIQUE,
-                    is_active BOOLEAN DEFAULT FALSE,
+                    google_id VARCHAR(255) NULL UNIQUE,
+                    is_active BOOLEAN DEFAULT TRUE,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     INDEX idx_email (email),
                     INDEX idx_username (username)

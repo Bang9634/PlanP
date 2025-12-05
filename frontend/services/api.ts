@@ -6,6 +6,7 @@ declare global {
     };
   }
 }
+import {AuthService} from './AuthService';
 
 /**
  * API Base URL 결정 (타입 안전)
@@ -94,9 +95,12 @@ export interface SignupRequest {
 }
 // 회원가입 응답
 export interface SignupResponse {
-  success: boolean;  // 회원가입 성공 여부
-  message: string;   // 성공/실패 메세지
-  userId?: string;   // 생성된 사용자 ID(success 시)
+  success: boolean; // .회원가입 성공 여부
+  message: string; // 성공/실패 메세지
+  userId?: string; // 생성된 사용자 ID(success 시)
+  // 회원가입후 생성된 토큰을 받음
+  accessToken?: string;
+  refreshToken?: string;
 }
 // 로그인 요청
 export interface LoginRequest {
@@ -112,6 +116,9 @@ export interface LoginResponse {
     name: string;
     email: string;
   };
+  // 로그인후 생성된 토큰을 받음
+  accessToken?: string;
+  refreshToken?: string;
 }
 
 // 6) 내정보 (UserProfile)
@@ -180,27 +187,69 @@ export interface CalendarDayActivity {
 
 
 export class ApiService {
-  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+// 세번째 매개변수 requireAuth는 인증 상태를 요구하느냐를 의미함
+// 기본값은 false로 로그인, 회원가입과 같은 api를 호출할때는 로그인 상태가 아니기에 false,
+// 로그아웃이나 내 정보 보기와 같은 api를 호출할 때는 로그인 상태를 요구하기에 true가 되어야함.
+  private async request<T>(endpoint: string, options: RequestInit = {}, requiresAuth: boolean = false ): Promise<T> {
     const url = `${API_BASE_URL}${endpoint}`;
     
     try {
+      // 헤더 구성
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        ...options.headers,
+      };
+
+      // 인증이 필요한 요청인 경우 토큰 추가
+      if (requiresAuth) {
+        const token = AuthService.getAccessToken();
+
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+
+          if (DEBUG) {
+            console.log('🔑 Authorization 헤더 추가:', `Bearer ${token.substring(0, 20)}...`);
+          }
+        } else {
+          console.warn('⚠️ 인증이 필요한 요청이지만 토큰이 없습니다');
+
+          // 로그인 페이지로 리다이렉트
+          if (typeof window !== 'undefined') {
+            window.location.href = '/login';
+          }
+
+          throw new Error('인증이 필요합니다. 로그인해주세요.');
+        }
+      }
+
       if (DEBUG) {
         console.log(`🌐 API 요청: ${options.method || 'GET'} ${url}`, {
-          headers: options.headers,
-          body: options.body
+          headers,
+          body: options.body,
+          requiresAuth
         });
       }
       
       const response = await fetch(url, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          ...options.headers,
-        },
+        headers,
         credentials: 'include',
         ...options,
       });
 
+      // 401 에러 처리 (인증 실패)
+      if (response.status === 401) {
+        console.warn('🔒 401 Unauthorized - 로그아웃 처리');
+
+        AuthService.logout();
+
+        if (typeof window !== 'undefined') {
+          alert('인증이 만료되었습니다. 다시 로그인해주세요.');
+          window.location.href = '/login';
+        }
+
+        throw new Error('인증이 만료되었습니다');
+      }
 
       const data = await response.json();
       
@@ -234,43 +283,87 @@ export class ApiService {
       throw error;
     }
   }
-
-  // 1) 이메일 전송 API
+  // 이메일 전송 API
     async sendEmailCode(email: string): Promise<SignupResponse> {
+        console.log("📨 이메일 인증코드 전송 API 호출");
         return this.request<SignupResponse>("/users/send-email-code", {
             method: "POST",
             body: JSON.stringify({ email }),
-        });
+        }, false);
     }
-  // 2) 이메일 검증 API
+
     async verifyEmailCode(email: string, code: string): Promise<SignupResponse> {
+        console.log("🔍 이메일 인증코드 검증 API 호출");
         return this.request<SignupResponse>("/users/verify-email-code", {
             method: "POST",
             body: JSON.stringify({ email, code }),
-        });
+        }, false);
     }
 
 
-    // 3) 사용자 관리 API
+    // 회원가입 API
   async signup(data: SignupRequest): Promise<SignupResponse> {
-    return this.request<SignupResponse>('/users/signup', {
+    const response = await this.request<SignupResponse>('/users/signup', {
       method: 'POST',
       body: JSON.stringify(data),
-    });
+    }, false);
+
+    // 회원가입 성공 시 토큰 저장
+    if (response.success && response.accessToken) {
+      AuthService.saveTokens({
+        accessToken: response.accessToken,
+        refreshToken: response.refreshToken,
+      });
+
+      if (response.userId) {
+        // 사용자 정보는 로그인 후 따로 조회하거나, 응답에 포함시켜야 함
+        AuthService.saveUserInfo({
+          userId: response.userId,
+          name: '',  // 백엔드 응답에 추가 필요
+          email: '',
+        });
+      }
+    }
+    return response;
   }
 
     // 4) 로그인 API
   async login(data: LoginRequest): Promise<LoginResponse> {
-    return this.request<LoginResponse>('/users/login', {
+    const response = await this.request<LoginResponse>('/users/login', {
       method: 'POST',
       body: JSON.stringify(data),
-    });
+    }, false);
+
+    // 로그인 성공 시 토큰 저장
+    if (response.success && response.accessToken) {
+      AuthService.saveTokens({
+        accessToken: response.accessToken,
+        refreshToken: response.refreshToken,
+      });
+
+      if (response.user) {
+        AuthService.saveUserInfo({
+          userId: response.user.userId,
+          name: response.user.name,
+          email: response.user.email,
+        });
+      }
+    }
+
+    return response;
   }
-    // 5) 로그아웄 API
+    // 5) 로그아웃 API
   async logout(): Promise<{ success: boolean; message: string }> {
-    return this.request('/users/logout', {
+    const response = await this.request('/users/logout', {
       method: 'POST',
-    });
+    }, true);
+
+    // 로그아웃 성공 시 로컬 토큰 삭제
+    if (response.success) {
+      AuthService.logout();
+    }
+
+    return response;
   }
     // 6) 내 정보 가져오는 API
     async getMyProfile(): Promise<UserProfile> {
@@ -309,7 +402,7 @@ export class ApiService {
 
 
 
-    // Health Check
+  // Health Check
   async healthCheck(): Promise<string> {
     const healthUrl = API_BASE_URL.replace('/api', '') + '/health';
     

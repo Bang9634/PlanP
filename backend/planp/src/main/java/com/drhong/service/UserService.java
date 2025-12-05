@@ -1,14 +1,14 @@
 package com.drhong.service;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.drhong.dao.UserDAO;
 import com.drhong.dto.SignupRequest;
-import com.drhong.dto.SignupResponse;
 import com.drhong.model.User;
+import com.drhong.repository.UserRepository;
 import com.drhong.util.PasswordUtil;
 import com.drhong.validator.SignupValidator;
 
@@ -19,46 +19,11 @@ import com.drhong.validator.SignupValidator;
  * 회원가입, 로그인 인증, 비밀번호 변경, 중복 확인 등의 기능을 제공하며,
  * 컨트롤러와 DAO 사이에서 비즈니스 규칙을 적용하고 데이터 무결성을 보장한다.
  * </p>
- * 
- * <h3>주요 책임:</h3>
- * <ul>
- *   <li>입력 데이터 검증 및 비즈니스 룰 적용</li>
- *   <li>비밀번호 암호화/검증 처리</li>
- *   <li>사용자 중복성 검사 (ID, 이메일)</li>
- *   <li>사용자 인증 및 권한 검증</li>
- *   <li>데이터 접근 계층과의 상호작용</li>
- * </ul>
- * 
- * <h3>보안 정책:</h3>
- * <ul>
- *   <li>모든 비밀번호는 bcrypt 해싱으로 암호화</li>
- *   <li>비밀번호 강도 검증 </li>
- *   <li>사용자 ID와 이메일 유일성 보장</li>
- *   <li>입력값 유효성 검증을 통한 보안 강화</li>
- * </ul>
- * 
- * <h3>사용 예시:</h3>
- * <pre>{@code
- * UserDAO userDAO = new UserDAO();
- * UserService userService = new UserService(userDAO);
- * 
- * // 회원가입
- * SignupRequest request = new SignupRequest("user123", "password!", "홍길동", "hong@example.com");
- * SignupResponse response = userService.signup(request);
- * 
- * // 로그인
- * boolean loginSuccess = userService.login("user123", "password!");
- * 
- * // 중복 확인
- * boolean available = userService.isUserIdAvailable("newuser");
- * }</pre>
- * 
  * @author bang9634
  * @since 2025-11-10
  * 
- * @see com.drhong.dao.UserDAO
+ * @see com.drhong.repository.UserRepository
  * @see com.drhong.dto.SignupRequest
- * @see com.drhong.dto.SignupResponse
  * @see com.drhong.util.PasswordUtil
  * @see com.drhong.validator.SignupValidator
  */
@@ -68,7 +33,7 @@ public class UserService {
     private static final Logger logger = LoggerFactory.getLogger(UserService.class);
     
     /** 사용자 데이터 접근 객체 */
-    private final UserDAO userDAO;
+    private final UserRepository userRepository;
 
     /** 비밀번호 최소 강도 점수 (0-100 점 중) */
     private static final int MIN_PASSWORD_STRENGTH = 40;
@@ -84,11 +49,11 @@ public class UserService {
      * 
      * @throws NullPointerException userDAO가 null인 경우
      */
-    public UserService(UserDAO userDAO) {
-        if (userDAO == null) {
+    public UserService(UserRepository userRepository) {
+        if (userRepository == null) {
             throw new NullPointerException("UserDAO는 null일 수 없습니다");
         }
-        this.userDAO = userDAO;
+        this.userRepository = userRepository;
         logger.info("UserService 초기화 완료 (주입된 UserDAO 사용)");
     }
 
@@ -127,10 +92,12 @@ public class UserService {
      * 
      * @apiNote 예외 발생 시에도 사용자 친화적 메시지로 실패 응답 반환
      */
-    public SignupResponse signup(SignupRequest request) {
+    public Optional<User> signup(SignupRequest request) {
+        logger.info("회원가입 처리 시작");
+
         if (request == null) {
             logger.error("회원가입 요청이 null입니다");
-            return new SignupResponse(false, "잘못된 요청입니다.");
+            throw new RuntimeException("회원가입 요청이 없습니다.");
         }
         
         logger.info("회원가입 처리 시작: userId={}, email={}", request.getUserId(), request.getEmail());
@@ -142,7 +109,7 @@ public class UserService {
             if (!validationErrors.isEmpty()) {
                 logger.debug("Request가 유효하지 않음");
                 String errorMessage = String.join(", ", validationErrors);
-                return new SignupResponse(false, errorMessage);
+                throw new RuntimeException(errorMessage);
             }
             logger.debug("정상적인 Request");
 
@@ -150,7 +117,7 @@ public class UserService {
             logger.debug("사용자 ID 중복 확인 시작...");
             if (!isUserIdAvailable(request.getUserId())) {
                 logger.warn("사용자 ID 중복 발생: userId={}", request.getUserId());
-                return new SignupResponse(false, "이미 사용중인 사용자 ID입니다.");
+                throw new RuntimeException("이미 존재하는 아이디입니다.");
             }
             logger.debug("사용자 ID 중복되지않음: userId={}", request.getUserId());
 
@@ -158,7 +125,7 @@ public class UserService {
             logger.debug("사용자 이메일 중복 시작...");
             if (!isEmailAvailable(request.getEmail())) {
                 logger.warn("사용자 이메일 중복 발생: email={}", request.getEmail());
-                return new SignupResponse(false, "이미 사용중인 이메일입니다.");
+                throw new RuntimeException("이미 존재하는 이메일입니다.");
             }
             logger.debug("사용자 이메일 중복되지않음: email={}", request.getEmail());
 
@@ -169,8 +136,7 @@ public class UserService {
                 String strengthText = PasswordUtil.getPasswordStrengthText(request.getPassword());
                 logger.warn("비밀번호 강도 부족: userId={}, strength={}/{}", 
                     request.getUserId(), passwordStrength, MIN_PASSWORD_STRENGTH);
-                return new SignupResponse(false, 
-                    String.format("비밀번호 강도가 너무 약합니다. (현재: %s, 권장: 보통 이상)", strengthText));
+                throw new RuntimeException(String.format("비밀번호 강도가 너무 약합니다. (현재: %s, 권장: 보통 이상)", strengthText));
             }
             logger.debug("비밀번호 강도 충분함");
 
@@ -188,21 +154,17 @@ public class UserService {
             );
 
             // 7. 데이터베이스에 저장
-            boolean saved = userDAO.save(newUser);
-            if (!saved) {
-                logger.error("사용자 저장 실패: userId={}", request.getUserId());
-                return new SignupResponse(false, "회원가입 처리 중 오류가 발생했습니다.");
-            }
+            userRepository.save(newUser);
 
             // 8. 성공 응답
             logger.info("회원가입 성공: userId={}, email={}",
                 request.getUserId(), request.getEmail());
-            return new SignupResponse(true, "회원가입이 완료되었습니다.", request.getUserId());
+            return Optional.of(newUser);
 
         } catch (Exception e) {
             System.err.println("회원가입 처리 중 예외 발생: " + e.getMessage());
             logger.error("회원가입 처리 중 예상치 못한 오류: userId={}", request.getUserId(), e);
-            return new SignupResponse(false, "서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+            throw new RuntimeException("서버 오류가 발생했습니다. 잠시 후 시도 해주세요.");
         }
     }
 
@@ -213,114 +175,55 @@ public class UserService {
      * 비밀번호는 bcrypt를 사용하여 안전하게 검증된다.
      * </p>
      * 
-     * <h4>인증 과정:</h4>
-     * <ol>
-     *   <li>사용자 ID로 사용자 조회</li>
-     *   <li>사용자 존재 여부 확인</li>
-     *   <li>입력된 비밀번호와 저장된 해시 비교</li>
-     *   <li>인증 결과 반환</li>
-     * </ol>
-     * 
      * @param userId 로그인할 사용자 ID
      * @param password 평문 비밀번호
      * @return 인증 성공 시 true, 실패 시 false
      * 
      * @apiNote 보안을 위해 사용자 존재 여부와 비밀번호 오류를 구분하지 않음
      */
-    public boolean login(String userId, String password) {
+    public Optional<User> login(String userId, String password) {
         if (userId == null || password == null) {
             logger.warn("로그인 시도 - null 파라미터: userId={}, password={}", userId, password != null);
-            return false;
+            throw new RuntimeException("null 파라미터 입력");
         }
 
         logger.debug("로그인 시도: userId={}", userId);
-
-        try {
-            // 사용자 조회
-            User user = userDAO.findByUserId(userId);
-            if (user == null) {
-                logger.debug("로그인 실패 - 사용자 없음: userId={}", userId);
-                return false;
-            }
-            
-            // 비밀번호 검증
-            boolean isValid = PasswordUtil.verify(password, user.getPassword());
-            
-            if (isValid) {
-                logger.info("로그인 성공: userId={}", userId);
-            } else {
-                logger.warn("로그인 실패 - 비밀번호 불일치: userId={}", userId);
-            }
-
-            return isValid;
-
-        } catch (Exception e) {
-            logger.error("로그인 처리 중 예외 발생: userId={}", userId, e);
-            return false;
+    
+        // 사용자 조회
+        Optional<User> user = userRepository.findByUserId(userId);
+        if (user.isEmpty()) {
+            logger.debug("로그인 실패 - 사용자 없음: userId={}", userId);
+            throw new RuntimeException("사용자가 존재하지 않습니다.");
+        }
+        
+        // 비밀번호 검증
+        boolean isValid = PasswordUtil.verify(password, user.get().getPassword());
+        
+        if (isValid) {
+            logger.info("로그인 성공: userId={}", userId);
+            return user;
+        } else {
+            logger.warn("로그인 실패 - 비밀번호 불일치: userId={}", userId);
+            throw new RuntimeException("비밀번호가 일치하지 않습니다.");
         }
     }
 
-    /**
-     * 사용자 비밀번호를 변경하는 메서드
-     * <p>
-     * 기존 비밀번호를 확인한 후 새 비밀번호로 안전하게 변경한다.
-     * 새 비밀번호는 bcrypt로 해싱되어 저장된다.
-     * </p>
-     * 
-     * <h4>변경 과정:</h4>
-     * <ol>
-     *   <li>사용자 ID로 사용자 조회</li>
-     *   <li>기존 비밀번호 검증</li>
-     *   <li>새 비밀번호 해싱</li>
-     *   <li>사용자 정보 업데이트</li>
-     * </ol>
-     * 
-     * @param userId 비밀번호를 변경할 사용자 ID
-     * @param oldPassword 현재 비밀번호 (평문)
-     * @param newPassword 새 비밀번호 (평문)
-     * @return 변경 성공 시 true, 실패 시 false
-     * 
-     * @apiNote 새 비밀번호의 강도 검증은 별도로 수행하는 것을 권장
-     */
-    public boolean changePassword(String userId, String oldPassword, String newPassword) {
-        if (userId == null || oldPassword == null || newPassword == null) {
-            logger.warn("비밀번호 변경 시도 - null 파라미터: userId={}", userId);
-            return false;
+    
+    public Optional<User> logout(String userId) {
+        if (userId == null) {
+            logger.warn("로그아웃 시도 - null 파라미터: userId={}", userId);
+            throw new RuntimeException("null 파라미터 입력");
         }
 
-        logger.info("비밀번호 변경 시도: userId={}", userId);
+        logger.debug("로그아웃 시도: userId={}", userId);
 
-        try {
-            // 사용자 조회
-            User user = userDAO.findByUserId(userId);
-            if (user == null) {
-                logger.warn("비밀번호 변경 실패 - 사용자 없음: userId={}", userId);
-                return false;
-            }
-            
-            // 기존 비밀번호 확인
-            if (!PasswordUtil.verify(oldPassword, user.getPassword())) {
-                logger.warn("비밀번호 변경 실패 - 기존 비밀번호 불일치: userId={}", userId);
-                return false;
-            }
-            
-            // 새 비밀번호 해싱 및 저장
-            String newHashedPassword = PasswordUtil.hash(newPassword);
-            user.setPassword(newHashedPassword);
-            
-            boolean updated = userDAO.save(user);
-
-            if (updated) {
-                logger.info("비밀번호 변경 성공: userId={}", userId);
-            } else {
-                logger.error("비밀번호 변경 실패 - 저장 오류: userId={}", userId);
-            }
-
-            return updated;
-        } catch (Exception e) {
-            logger.error("비밀번호 변경 중 예외 발생: userId={}", userId, e);
-            return false;
+        Optional<User> user = userRepository.findByUserId(userId);
+        if (user.isEmpty()) {
+            logger.debug("로그아웃 실패 - 사용자 없음: userId={}", userId);
+            throw new RuntimeException("사용자가 존재하지 않습니다.");
         }
+        logger.info("로그아웃 성공: userId={}", userId);
+        return user;
     }
 
     /**
@@ -340,8 +243,7 @@ public class UserService {
             logger.debug("ID 사용가능성 확인 - 유효하지 않은 ID: userId={}", userId);
             return false;
         }
-        
-        boolean available = userDAO.findByUserId(userId) == null;
+        boolean available = userRepository.findByUserId(userId).isEmpty();
         logger.debug("ID 사용가능성 확인: userId={}, available={}", userId, available);
         return available;
     }
@@ -363,8 +265,7 @@ public class UserService {
             logger.debug("이메일 사용가능성 확인 - 유효하지 않은 이메일: email={}", email);
             return false;
         }
-        
-        boolean available = userDAO.findByEmail(email) == null;
+        boolean available = userRepository.findByEmail(email).isEmpty();
         logger.debug("이메일 사용가능성 확인: email={}, available={}", email, available);
         return available;
     }
@@ -381,17 +282,17 @@ public class UserService {
      * 
      * @apiNote 반환된 User 객체의 비밀번호는 해시된 상태임
      */
-    public User getUserByUserId(String userId) {
+    public Optional<User> getUserByUserId(String userId) {
         if (userId == null || userId.trim().isEmpty()) {
             logger.debug("사용자 조회 시도 - 유효하지 않은 ID: userId={}", userId);
             return null;
         }
         
         logger.debug("사용자 ID로 조회: userId={}", userId);
-        User user = userDAO.findByUserId(userId);
+        Optional<User> user = userRepository.findByUserId(userId);
         
-        if (user != null) {
-            logger.debug("사용자 조회 성공: userId={}, name={}", userId, user.getName());
+        if (user.isEmpty()) {
+            logger.debug("사용자 조회 성공: userId={}, name={}", userId, user.get().getName());
         } else {
             logger.debug("사용자 조회 실패 - 존재하지 않음: userId={}", userId);
         }
@@ -411,17 +312,17 @@ public class UserService {
      * 
      * @apiNote 반환된 User 객체의 비밀번호는 해시된 상태임
      */
-    public User getUserByEmail(String email) {
+    public Optional<User> getUserByEmail(String email) {
         if (email == null || email.trim().isEmpty()) {
             logger.debug("사용자 조회 시도 - 유효하지 않은 이메일: email={}", email);
             return null;
         }
         
         logger.debug("이메일로 사용자 조회: email={}", email);
-        User user = userDAO.findByEmail(email);
+        Optional<User> user = userRepository.findByEmail(email);
         
-        if (user != null) {
-            logger.debug("이메일로 사용자 조회 성공: email={}, userId={}", email, user.getUserId());
+        if (user.isEmpty()) {
+            logger.debug("이메일로 사용자 조회 성공: email={}, userId={}", email, user.get().getUserId());
         } else {
             logger.debug("이메일로 사용자 조회 실패 - 존재하지 않음: email={}", email);
         }
@@ -441,7 +342,7 @@ public class UserService {
      * @apiNote 관리자 권한이 필요한 기능으로 사용 시 권한 검증 필요
      */
     public int getUserCount() {
-        int count = userDAO.count();
+        int count = userRepository.count();
         logger.debug("전체 사용자 수 조회: count={}", count);
         return count;
     }
@@ -463,16 +364,101 @@ public class UserService {
         logger.warn("사용자 저장소 디버깅 메서드 호출 - 개발 전용 기능");
         
         System.out.println("=== 사용자 저장소 상태 ===");
-        System.out.println("저장된 사용자 수: " + userDAO.count());
+        System.out.println("저장된 사용자 수: " + userRepository.count());
         
         // 모든 사용자 출력 (비밀번호 제외)
-        userDAO.findAll().forEach(user -> {
+        userRepository.findAll().forEach(user -> {
             System.out.println(String.format("사용자: %s, 이메일: %s, 이름: %s", 
                 user.getUserId(), user.getEmail(), user.getName()));
         });
         
         System.out.println("========================");
         
-        logger.info("사용자 저장소 디버깅 완료: 총 {}명의 사용자 정보 출력", userDAO.count());
+        logger.info("사용자 저장소 디버깅 완료: 총 {}명의 사용자 정보 출력", userRepository.count());
+    }
+    
+    /**
+     * Google OAuth 로그인/회원가입을 처리하는 메서드
+     * 
+     * @param googleId Google에서 제공하는 사용자 고유 ID
+     * @param email 사용자 이메일
+     * @param name 사용자 이름
+     * @return 로그인된 또는 새로 생성된 User 객체
+     * @throws RuntimeException 이메일 중복 또는 DB 오류 시
+     */
+    public User googleLogin(String googleId, String email, String name) {
+        logger.info("Google OAuth 로그인/회원가입 처리 시작: email={}", email);
+        
+        // 입력 유효성 검증
+        if (googleId == null || googleId.trim().isEmpty()) {
+            throw new IllegalArgumentException("Google ID는 필수입니다");
+        }
+        if (email == null || email.trim().isEmpty()) {
+            throw new IllegalArgumentException("이메일은 필수입니다");
+        }
+        if (name == null || name.trim().isEmpty()) {
+            throw new IllegalArgumentException("이름은 필수입니다");
+        }
+        
+        try {
+            // 1. 기존 Google 계정 확인
+            Optional<User> existingGoogleUser = userRepository.findByGoogleId(googleId);
+            if (existingGoogleUser.isPresent()) {
+                logger.info("기존 Google 계정으로 로그인: email={}", email);
+                return existingGoogleUser.get();
+            }
+            
+            // 2. 이메일 중복 확인 (다른 계정에서 사용중인지)
+            Optional<User> existingEmailUser = userRepository.findByEmail(email);
+            if (existingEmailUser.isPresent()) {
+                logger.warn("이메일 중복: 이미 다른 계정에서 사용중 - email={}", email);
+                throw new RuntimeException("이 이메일은 이미 가입되어 있습니다. 다른 방법으로 로그인해주세요.");
+            }
+            
+            // 3. 신규 Google 계정 생성
+            logger.info("신규 Google 계정 생성 시작: email={}", email);
+            
+            User newUser = new User();
+            newUser.setUserId(generateUniqueUserId(email));
+            newUser.setEmail(email);
+            newUser.setName(name);
+            newUser.setPassword(""); // Google 계정은 비밀번호 불필요
+            newUser.setGoogleId(googleId);
+            newUser.setActive(true); // Google 인증 사용자는 즉시 활성화
+            
+            userRepository.save(newUser);
+            logger.info("Google 계정 회원가입 완료: email={}", email);
+            return newUser;
+            
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Exception e) {
+            logger.error("Google OAuth 처리 중 예상치 못한 오류: email={}", email, e);
+            throw new RuntimeException("로그인 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+        }
+    }
+    
+    /**
+     * 이메일 기반으로 고유한 사용자 ID를 생성하는 메서드
+     */
+    private String generateUniqueUserId(String email) {
+        String baseId = email.split("@")[0];
+        baseId = baseId.replaceAll("[^a-zA-Z0-9]", "").toLowerCase();
+        
+        // 최대 15자로 제한
+        if (baseId.length() > 15) {
+            baseId = baseId.substring(0, 15);
+        }
+        
+        String candidateId = "user_" + baseId;
+        int counter = 1;
+        
+        // 중복 확인 후 고유한 ID 생성
+        while (userRepository.findByUserId(candidateId).isPresent()) {
+            candidateId = "user_" + baseId + "_" + counter;
+            counter++;
+        }
+        
+        return candidateId;
     }
 }

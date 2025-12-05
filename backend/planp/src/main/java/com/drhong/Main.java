@@ -2,18 +2,15 @@ package com.drhong;
 
 import java.io.IOException;
 import java.sql.SQLException;
+import java.util.Arrays;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.drhong.config.DatabaseConfig;
 import com.drhong.config.EnvironmentConfig;
-import com.drhong.dao.UserDAO;
-import com.drhong.database.ConnectionManager;
+import com.drhong.context.ApplicationContext;
 import com.drhong.database.DatabaseInitializer;
-import com.drhong.database.QueryExecutor;
 import com.drhong.server.PlanPServer;
-import com.drhong.service.UserService;
 
 /**
  * PlanP 백엔드 애플리케이션의 메인 엔트리 포인트 클래스
@@ -21,13 +18,6 @@ import com.drhong.service.UserService;
  * 이 클래스는 PlanP 백엔드 서버의 시작점 역할을 담당한다.
  * 시스템 초기화, 설정 로딩, 서버 생성 및 시작을 관리하며,
  * </p>
- * 
- * <h3>주요 기능:</h3>
- * <ul>
- *   <li>커맨드라인 인수 및 환경변수를 통한 설정 관리</li>
- *   <li>HTTP 서버 초기화 및 의존성 주입</li>
- *   <li>Graceful 서버 시작 및 오류 처리</li>
- * </ul>
  * 
  * <h3>실행 방법:</h3>
  * <pre>{@code
@@ -102,30 +92,12 @@ public class Main {
      * 커맨드라인 인수 사용법은 아래에 후술한다.
      * </p>
      * 
-     * <h3>실행 단계:</h3>
-     * <ol>
-     *   <li>시작 배너 출력</li>
-     *   <li>설정값 파싱 (포트, 호스트)</li>
-     *   <li>데이터베이스 초기화</li>
-     *   <li>서비스 초기화</li>
-     *   <li>HTTP 서버 생성</li>
-     *   <li>서버 시작 및 대기</li>
-     * </ol>
-     * 
      * <h3>종료 코드:</h3>
      * <ul>
      *   <li><strong>0:</strong> 정상 종료</li>
      *   <li><strong>1:</strong> 서버 시작 실패</li>
      * </ul>
      * 
-     * <h3>커맨드라인 인수:</h3>
-     * <pre>{@code
-     * java -jar planp-backend.jar [포트번호] [호스트주소]
-     * 
-     * # 예시:
-     * java -jar planp-backend.jar 8080 0.0.0.0  # 포트 8080, 호스트 주소 0.0.0.0으로 시작
-     * java -jar planp-backend.jar               # 환경변수 또는 기본값으로 시작
-     * }</pre>
      * @param args 커맨드라인 인수 배열 (선택적 포트 번호 포함)
      * 
      * @exception IllegalArgumentException 포트 번호 및 호스트주소가 유효하지않거나,
@@ -146,7 +118,7 @@ public class Main {
         System.out.println(STARTUP_BANNER);
         System.out.println("PlanP 백엔드 서버 초기화 중...\n");
 
-        Dependencies dependencies;
+        ApplicationContext applicationContext;
         
         try {
             // 환경 설정 출력
@@ -164,17 +136,22 @@ public class Main {
             System.out.printf("└─  허용 오리진: %s\n",
                 String.join(", ", EnvironmentConfig.getAllowedOrigins()));
 
-
-            dependencies = initializDependencies();
-
+            applicationContext = initializeContext();
             
             // HTTP 서버 생성 및 시작
             System.out.println("\nHTTP 서버 생성 중...");
-            PlanPServer server = new PlanPServer(host, port, dependencies.userService);
+            PlanPServer server = new PlanPServer.Builder()
+                .host(host).port(port)
+                .allowedOrigins(Arrays.asList(EnvironmentConfig.getAllowedOrigins()))
+                .addPublicRoute("/health", applicationContext.getHealthCheckHandler())
+                .addProtectedRoute("/api/users", applicationContext.getUserHandler(), applicationContext.getAuthenticationFilter())
+                .build();
+
+
             System.out.println("\nHTTP 서버 생성 완료");
 
             // Shutdown Hook 등록 (Graceful Shutdown)
-            registerShutdownHook(server, dependencies);
+            registerShutdownHook(server, applicationContext);
             
             System.out.printf("\n서버가 http://%s:%d 에서 시작되었습니다\n", host, port);
             System.out.println("Health Check: http://" + host + ":" + port + "/health");
@@ -216,22 +193,22 @@ public class Main {
      * </p>
      * @return 의존성 주입된 클래스
      */
-    private static Dependencies initializDependencies() {
+    private static ApplicationContext initializeContext() {
         System.out.println("\n=== 의존성 초기화 시작 ===\n");
     
         try {
             // Dependencies 생성 (내부에서 모든 의존성 초기화)
-            Dependencies deps = new Dependencies();
+            ApplicationContext context = new ApplicationContext();
             
             // 데이터베이스 초기화
             System.out.println("데이터베이스 초기화 중...");
-            DatabaseInitializer dbInit = new DatabaseInitializer(deps.databaseConfig);
+            DatabaseInitializer dbInit = new DatabaseInitializer(context.getDatabaseConfig());
             dbInit.initialize();
             System.out.println("✓ 데이터베이스 초기화 완료\n");
             
             System.out.println("=== 의존성 초기화 완료 ===\n");
             
-            return deps;
+            return context;
             
         } catch (Exception e) {
             logger.error("의존성 초기화 중 오류 발생", e);
@@ -416,7 +393,7 @@ public class Main {
      * 
      * @implNote Runtime.addShutdownHook()을 사용하여 JVM 레벨에서 관리
      */
-    private static void registerShutdownHook(PlanPServer server, Dependencies dependencies) {
+    private static void registerShutdownHook(PlanPServer server, ApplicationContext context) {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             System.out.println("\n서버 종료 신호 수신...");
             System.out.println("진행 중인 요청 완료 대기 중...");
@@ -425,8 +402,8 @@ public class Main {
                 server.stop();
                 System.out.println("HTTP 서버 종료 완료");
 
-                if (dependencies != null) {
-                    dependencies.shutdown();
+                if (context != null) {
+                    context.shutdown();
                     System.out.println("의존성 정리 완료");
                 }
 
@@ -440,85 +417,5 @@ public class Main {
         }, "shutdown-hook"));
         
         System.out.println("Graceful shutdown 훅 등록 완료");
-    }
-
-    /**
-     * 애플리케이션 의존성 컨테이너
-     * 
-     * <p>
-     * 초기화된 모든 의존성 객체들을 담는 컨테이너 클래스다.
-     * </p>
-     * 
-     * @author bang9634
-     * @since 2025-11-19
-     */
-    private static class Dependencies {
-        final DatabaseConfig databaseConfig;
-        final ConnectionManager connectionManager;
-        final QueryExecutor queryExecutor;
-        final UserDAO userDAO;
-        final UserService userService;
-
-        /**
-         * 모든 의존성을 초기화하는 생성자
-         * 
-         * <p>
-         * 의존성 체인을 따라 순차적으로 객체를 생성한다:
-         * </p>
-         * 
-         * @throws RuntimeException 의존성 초기화 실패 시
-         */
-        private Dependencies() {
-            logger.info("=== 의존성 초기화 시작 ===");
-            try {
-                // 1. 데이터베이스 설정
-                logger.info("1. DatabaseConfig 생성");
-                this.databaseConfig = new DatabaseConfig();
-
-                // 2. Connection Pool 초기화
-                logger.info("2. ConnectionManager 초기화");
-                this.connectionManager = ConnectionManager.getInstance(databaseConfig);
-                logger.info("   ✓ Connection Pool 초기화 완료");
-                
-                // 3. QueryExecutor 생성
-                logger.info("3. QueryExecutor 생성");
-                this.queryExecutor = new QueryExecutor(connectionManager);
-                
-                // 4. DAO 생성
-                logger.info("4. UserDAO 생성");
-                this.userDAO = new UserDAO(queryExecutor);
-                
-                // 5. Service 생성
-                logger.info("5. UserService 생성");
-                this.userService = new UserService(userDAO);
-
-                logger.info("=== 의존성 초기화 완료 ===\n");
-                
-            } catch (Exception e) {
-                logger.error("의존성 초기화 실패", e);
-                throw new RuntimeException("Failed to initialize dependencies", e);
-            }
-        }
-        /**
-         * ConnectionManager를 안전하게 종료한다.
-         * 
-         * <p>
-         * 모든 Connection을 정리하고 리소스를 해제한다.
-         * Graceful Shutdown 시 호출된다.
-         * </p>
-         * 
-         * @throws SQLException Connection 종료 실패 시
-         */
-        void shutdown() throws SQLException {
-            try {
-                if (connectionManager != null) {
-                    logger.info("ConnectionManager 종료 중...");
-                    connectionManager.shutdown();
-                    logger.info("ConnectionManager 종료 완료");
-                }
-            } catch (SQLException e) {
-                logger.warn("ConnectionManager 종료 중 오류 발생: {}", e);
-            }
-        }
     }
 }
