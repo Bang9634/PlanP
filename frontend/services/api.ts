@@ -128,16 +128,13 @@ export interface GoogleLoginRequest {
 export interface GoogleLoginResponse extends LoginResponse {}
 
 // 6) 내정보 (UserProfile)
-// /users/me API용
+// /users/get-info API용
 // 프론트 MyAccoutPage에 데이터 구성에 사용할 요소
 export interface UserProfile {
     userId: string;     // ID
     name: string;       // 이름
     email: string;      // 이메일
-    // 아래는 선택적 필드
-    // 시간없으면 빼야함
-    level?: number;     // 성취 레벨
-    points?: number;    // 성취 포인트
+    isGoogleAccount: boolean; // 구글 ID
 }
 // 7) 활동기록
 export interface ActivityRecord {
@@ -404,27 +401,26 @@ export class ApiService {
     if (response.success) {
       AuthService.logout();
     }
-
     return response;
   }
     // 6) 내 정보 가져오는 API
     async getMyProfile(): Promise<UserProfile> {
-        return this.request<UserProfile>("/users/me", {
+        return this.request<UserProfile>("/users/get-info", {
             method: "GET",
-        });
+        }, true);
     }
 
     // 7) 내 활동기록 API
     async getMyActivityHistory(): Promise<ActivityRecord[]> {
         return this.request<ActivityRecord[]>("/users/me/activity-history", {
             method: "GET",
-        });
+        }, true);
     }
     // 8) 통계 API
     async getMyStatistics(): Promise<ActivityStatistics> {
         return this.request<ActivityStatistics>("/users/me/statistics", {
             method: "GET",
-        });
+        }, true);
     }
     // 9) 뱃지 API(진짜 필요하냐고?)
     async getMyAchievements(): Promise<Achievement[]> {
@@ -440,6 +436,9 @@ export class ApiService {
             method: "GET",
         });
     }
+
+    // 11) 성취 API
+
 
 
 
