@@ -21,7 +21,11 @@ public class UserHandler extends BaseHandler {
     protected void registerRoutes() {
         post("/signup", this::handleSignup);
         post("/login", this::handleLogin);
+        post("/logout", this::handleLogout);
         post("/auth/google", this::handleGoogleLogin);
+        
+        // 사용자 정보 조회 라우트
+        get("/profile", this::handleGetUserInfo);
     }
 
     @Override
@@ -111,4 +115,63 @@ public class UserHandler extends BaseHandler {
             sendErrorResponse(exchange, 500, "Google 로그인 처리 중 오류가 발생했습니다");
         }
     }
+    
+    /**
+     * 사용자 정보 조회 요청을 처리하는 메서드
+     * 
+     * GET /api/users/profile?userId={userId} 를 처리한다.
+     */
+    private void handleGetUserInfo(HttpExchange exchange) throws IOException {
+        logger.debug("사용자 정보 조회 요청");
+        
+        try {
+            String userId = getQueryParameter(exchange, "userId");
+            
+            if (userId == null || userId.trim().isEmpty()) {
+                sendErrorResponse(exchange, 400, "userId 매개변수가 필요합니다");
+                return;
+            }
+            
+            ApiResponse<?> response = userController.getUserInfo(userId);
+            
+            if (response.isSuccess()) {
+                sendSuccessResponse(exchange, response);
+            } else {
+                sendErrorResponse(exchange, 404, response.getMessage());
+            }
+            
+        } catch (Exception e) {
+            logger.error("사용자 정보 조회 중 오류", e);
+            sendErrorResponse(exchange, 500, "서버 오류가 발생했습니다");
+        }
+    }
+    
+    /**
+     * URL 쿼리 파라미터를 추출하는 도우미 메서드
+     * 
+     * @param exchange HTTP 요청 객체
+     * @param paramName 추출할 파라미터 이름
+     * @return 파라미터 값, 없으면 null
+     */
+    private String getQueryParameter(HttpExchange exchange, String paramName) {
+        String query = exchange.getRequestURI().getQuery();
+        if (query == null) {
+            return null;
+        }
+        
+        for (String param : query.split("&")) {
+            String[] keyValue = param.split("=", 2);
+            if (keyValue.length == 2 && paramName.equals(keyValue[0])) {
+                try {
+                    return java.net.URLDecoder.decode(keyValue[1], "UTF-8");
+                } catch (java.io.UnsupportedEncodingException e) {
+                    logger.warn("쿼리 파라미터 디코딩 실패: {}", e.getMessage());
+                    return keyValue[1];
+                }
+            }
+        }
+        
+        return null;
+    }
+
 }

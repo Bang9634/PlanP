@@ -331,6 +331,54 @@ public class UserService {
     }
 
     /**
+     * 사용자 ID로 사용자 정보를 조회하는 메서드
+     * <p>
+     * 기존의 getUserByUserId 메서드를 활용하여 중복을 방지한다.
+     * API 응답용 사용자 정보 조회에 사용된다.
+     * </p>
+     * 
+     * @param userId 조회할 사용자 ID
+     * @return 사용자 정보 객체, 존재하지 않으면 Optional.empty()
+     * 
+     * @throws IllegalArgumentException userId가 null이거나 빈 문자열인 경우
+     * 
+     * @see #getUserByUserId(String)
+     */
+    public Optional<User> getUserInfo(String userId) {
+        // 기존 getUserByUserId 메서드를 활용하여 중복 제거
+        return getUserByUserId(userId);
+    }
+
+    /**
+     * 사용자 ID로 공개 가능한 사용자 정보를 조회하는 메서드
+     * <p>
+     * 보안상 안전한 사용자 정보만을 Map 형태로 반환한다.
+     * 비밀번호, Google ID 등 민감한 정보는 제외하고 반환한다.
+     * API 응답에 직접 사용할 수 있는 형태로 변환한다.
+     * </p>
+     * 
+     * @param userId 조회할 사용자 ID
+     * @return 공개 가능한 사용자 정보 Map
+     * 
+     * @throws RuntimeException 사용자가 존재하지 않는 경우
+     */
+    public java.util.Map<String, Object> getUserPublicInfo(String userId) {
+        Optional<User> user = getUserInfo(userId);
+        if (user.isEmpty()) {
+            throw new RuntimeException("사용자를 찾을 수 없습니다");
+        }
+        // 공개 가능한 정보만 선별하여 반환
+        java.util.Map<String, Object> publicInfo = new java.util.HashMap<>();
+        publicInfo.put("userId", user.get().getUserId());
+        publicInfo.put("name", user.get().getName());
+        publicInfo.put("email", user.get().getEmail());
+        publicInfo.put("isGoogleAccount", user.get().isGoogleAccount());
+        publicInfo.put("createdAt", user.get().getCreatedAt() != null ? user.get().getCreatedAt().toString() : null);
+        publicInfo.put("active", user.get().isActive());
+        return publicInfo;
+    }
+
+    /**
      * 등록된 전체 사용자 수를 조회하는 메서드
      * <p>
      * 관리자 대시보드나 통계 목적으로 사용한다.

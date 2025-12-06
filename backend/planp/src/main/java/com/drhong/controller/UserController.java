@@ -69,6 +69,9 @@ public class UserController {
 
             Map<String, Object> data = new HashMap<>();
             data.put("userId", user.get().getUserId());
+            data.put("name", user.get().getName());
+            data.put("email", user.get().getEmail());
+            data.put("isGoogleAccount", user.get().isGoogleAccount());
             data.put("accessToken", accessToken);
             data.put("refreshToken", refreshToken);
 
@@ -107,6 +110,8 @@ public class UserController {
             Map<String, Object> data = new HashMap<>();
             data.put("userId", user.get().getUserId());
             data.put("name", user.get().getName());
+            data.put("email", user.get().getEmail());
+            data.put("isGoogleAccount", user.get().isGoogleAccount());
             data.put("accessToken", accessToken);
             data.put("refreshToken", refreshToken);
             
@@ -178,12 +183,19 @@ public class UserController {
                 googleUser.getName()
             );
             
-            // 3. 성공 응답 생성
+            // 3. JWT 토큰 생성
+            String accessToken = jwtService.generateAccessToken(user);
+            String refreshToken = jwtService.generateRefreshToken(user.getUserId());
+            
+            // 4. 성공 응답 생성
             Map<String, Object> data = new HashMap<>();
             data.put("userId", user.getUserId());
             data.put("email", user.getEmail());
             data.put("name", user.getName());
+            data.put("isGoogleAccount", user.isGoogleAccount());
             data.put("loginType", "google");
+            data.put("accessToken", accessToken);
+            data.put("refreshToken", refreshToken);
             
             logger.info("Google OAuth 처리 성공: email={}", user.getEmail());
             return ApiResponse.success("인증 성공", data);
@@ -200,6 +212,79 @@ public class UserController {
         } catch (Exception e) {
             logger.error("Google OAuth 처리 중 예상치 못한 오류", e);
             return ApiResponse.fail("로그인 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+        }
+    }
+    
+    /**
+     * 리프레시 토큰을 사용하여 새로운 액세스 토큰을 발급받는 API
+     * 
+     * @param refreshToken 리프레시 토큰
+     * @return 새로운 액세스 토큰 또는 오류 메시지
+     */
+    public ApiResponse<?> refreshToken(String refreshToken) {
+        logger.debug("토큰 갱신 요청");
+        
+        try {
+            if (refreshToken == null || refreshToken.trim().isEmpty()) {
+                return ApiResponse.fail("리프레시 토큰이 필요합니다");
+            }
+            
+            // 리프레시 토큰 검증
+            Optional<User> user = jwtService.validateToken(refreshToken);
+            
+            if (user.isEmpty()) {
+                logger.warn("유효하지 않은 리프레시 토큰");
+                return ApiResponse.fail("유효하지 않은 리프레시 토큰입니다");
+            }
+            
+            // 새로운 액세스 토큰과 리프레시 토큰 생성
+            String newAccessToken = jwtService.generateAccessToken(user.get());
+            String newRefreshToken = jwtService.generateRefreshToken(user.get().getUserId());
+            
+            Map<String, Object> data = new HashMap<>();
+            data.put("accessToken", newAccessToken);
+            data.put("refreshToken", newRefreshToken);
+            
+            logger.info("토큰 갱신 성공: userId={}", user.get().getUserId());
+            return ApiResponse.success("토큰 갱신 성공", data);
+            
+        } catch (Exception e) {
+            logger.error("토큰 갱신 중 오류", e);
+            return ApiResponse.fail("토큰 갱신에 실패했습니다");
+        }
+    }
+    
+    /**
+     * 사용자 정보 조회 API
+     * <p>
+     * 주어진 사용자 ID에 해당하는 사용자 정보를 반환한다.
+     * 비밀번호나 Google ID 등 보안상 중요한 정보는 제외하고 반환한다.
+     * </p>
+     * 
+     * @param userId 조회할 사용자 ID
+     * @return 사용자 정보 API 응답
+     */
+    public ApiResponse<?> getUserInfo(String userId) {
+        logger.debug("사용자 정보 조회 API 호출: userId={}", userId);
+        
+        try {
+            if (userId == null || userId.trim().isEmpty()) {
+                return ApiResponse.fail("사용자 ID는 필수입니다");
+            }
+            
+            // UserService에서 공개 정보 처리 위임 (책임 분리)
+            java.util.Map<String, Object> userInfo = userService.getUserPublicInfo(userId);
+            
+            logger.info("사용자 정보 조회 성공: userId={}", userId);
+            return ApiResponse.success("사용자 정보 조회 성공", userInfo);
+            
+        } catch (IllegalArgumentException e) {
+            logger.warn("사용자 정보 조회 - 잘못된 요청: {}", e.getMessage());
+            return ApiResponse.fail(e.getMessage());
+            
+        } catch (Exception e) {
+            logger.error("사용자 정보 조회 중 예상치 못한 오류", e);
+            return ApiResponse.fail("사용자 정보 조회 중 오류가 발생했습니다");
         }
     }
 }
