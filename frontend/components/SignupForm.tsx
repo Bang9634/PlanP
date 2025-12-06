@@ -9,7 +9,7 @@ import {
     CardHeader,
     CardTitle,
 } from "./ui/card";
-import { Lightbulb, CheckCircle, Mail } from "lucide-react";
+import { Lightbulb, CheckCircle, Mail, ArrowLeft } from "lucide-react";
 import { apiService } from "../services/api";
 
 interface SignupFormProps {
@@ -22,11 +22,11 @@ interface SignupFormProps {
         name: string,
         email: string
     ) => void;
-
+    onBackToHome: () => void;
     onLoginClick: () => void;
 }
 
-export function SignupForm({ onSignup, onLoginClick }: SignupFormProps) {
+export function SignupForm({ onSignup, onLoginClick, onBackToHome }: SignupFormProps) {
 
         // 폼 입력값 관리
         // Form은 UI 요소이므로 입력 상태를 관리하는 것이 책임
@@ -142,10 +142,10 @@ export function SignupForm({ onSignup, onLoginClick }: SignupFormProps) {
             return;
         }
 
-        if (!isEmailVerified) {
-            alert("이메일 인증을 완료해주세요.");
-            return;
-        }
+        //  if (!isEmailVerified) {
+        //     alert("이메일 인증을 완료해주세요.");
+        //     return;
+        // }
 
         if (password !== confirmPassword) {
             alert("비밀번호가 일치하지 않습니다.");
@@ -162,7 +162,18 @@ export function SignupForm({ onSignup, onLoginClick }: SignupFormProps) {
         //회원가입 버튼은 App.tsx에서 처리되므로 단순히 submit 역할만 수행
 
     return (
-        <div className="min-h-screen bg-background flex items-center justify-center px-4">
+        // Flex 중앙 정렬 구조를 유지하고, 'relative'를 추가하여 버튼의 기준점으로 설정
+        <div className="min-h-screen bg-background flex items-center justify-center px-4 relative">
+
+            {/* ⬅️ 뒤로가기 버튼: 전체 컨테이너의 좌측 상단에 절대 위치(absolute)로 배치 */}
+            <div className="absolute top-0 left-0 p-4">
+                <Button variant="ghost" onClick={onBackToHome}>
+                    <ArrowLeft className="w-4 h-4 mr-2" />
+                    뒤로가기
+                </Button>
+            </div>
+
+
             <div className="w-full max-w-md">
                 {/* 로고 */}
                 <div className="text-center mb-8">
