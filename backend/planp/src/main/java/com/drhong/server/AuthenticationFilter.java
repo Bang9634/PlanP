@@ -63,6 +63,7 @@ public class AuthenticationFilter extends Filter {
      */
     private static final List<String> PUBLIC_ENDPOINTS = Arrays.asList(
         "GET:/health",
+        "POST:/api/users/login",
         "POST:/api/users/signup",
         "POST:/api/users/auth/google"
     );
