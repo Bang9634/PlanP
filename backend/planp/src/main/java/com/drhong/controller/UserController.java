@@ -255,35 +255,29 @@ public class UserController {
     }
     
     /**
-     * 사용자 정보 조회 API
+     * 사용자 정보 조회 API (엔드포인트: /api/users/get-info)
      * <p>
-     * 주어진 사용자 ID에 해당하는 사용자 정보를 반환한다.
-     * 비밀번호나 Google ID 등 보안상 중요한 정보는 제외하고 반환한다.
+     * accessToken 기반으로 현재 로그인한 사용자 정보를 반환한다.
      * </p>
-     * 
-     * @param userId 조회할 사용자 ID
+     * @param accessToken Authorization 헤더에서 추출
      * @return 사용자 정보 API 응답
      */
-    public ApiResponse<?> getUserInfo(String userId) {
-        logger.debug("사용자 정보 조회 API 호출: userId={}", userId);
-        
+    public ApiResponse<?> getUserInfoByToken(String accessToken) {
+        logger.debug("사용자 정보 조회 API 호출: accessToken={}", accessToken != null ? accessToken.substring(0, 10) + "..." : null);
         try {
-            if (userId == null || userId.trim().isEmpty()) {
-                return ApiResponse.fail("사용자 ID는 필수입니다");
+            if (accessToken == null || accessToken.trim().isEmpty()) {
+                return ApiResponse.fail("액세스 토큰이 필요합니다");
             }
-            
-            // UserService에서 공개 정보 처리 위임 (책임 분리)
-            java.util.Map<String, Object> userInfo = userService.getUserPublicInfo(userId);
-            
-            logger.info("사용자 정보 조회 성공: userId={}", userId);
+            // 토큰에서 사용자 정보 추출
+            java.util.Optional<com.drhong.model.User> user = jwtService.validateToken(accessToken);
+            if (user.isEmpty()) {
+                return ApiResponse.fail("유효하지 않은 토큰입니다");
+            }
+            java.util.Map<String, Object> userInfo = userService.getUserPublicInfo(user.get().getUserId());
+            logger.info("사용자 정보 조회 성공: userId={}", user.get().getUserId());
             return ApiResponse.success("사용자 정보 조회 성공", userInfo);
-            
-        } catch (IllegalArgumentException e) {
-            logger.warn("사용자 정보 조회 - 잘못된 요청: {}", e.getMessage());
-            return ApiResponse.fail(e.getMessage());
-            
         } catch (Exception e) {
-            logger.error("사용자 정보 조회 중 예상치 못한 오류", e);
+            logger.error("사용자 정보 조회 중 오류", e);
             return ApiResponse.fail("사용자 정보 조회 중 오류가 발생했습니다");
         }
     }

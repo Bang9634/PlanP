@@ -24,8 +24,8 @@ public class UserHandler extends BaseHandler {
         post("/logout", this::handleLogout);
         post("/auth/google", this::handleGoogleLogin);
         
-        // 사용자 정보 조회 라우트
-        get("/profile", this::handleGetUserInfo);
+        // 사용자 정보 조회 라우트 (accessToken 기반)
+        post("/get-info", this::handleGetUserInfoByToken);
     }
 
     @Override
@@ -117,29 +117,25 @@ public class UserHandler extends BaseHandler {
     }
     
     /**
-     * 사용자 정보 조회 요청을 처리하는 메서드
-     * 
-     * GET /api/users/profile?userId={userId} 를 처리한다.
+     * 사용자 정보 조회 요청을 처리하는 메서드 (accessToken 기반)
+     * POST /api/users/get-info
+     * Authorization 헤더의 accessToken(JWT)로 사용자 정보 반환
      */
-    private void handleGetUserInfo(HttpExchange exchange) throws IOException {
-        logger.debug("사용자 정보 조회 요청");
-        
+    private void handleGetUserInfoByToken(HttpExchange exchange) throws IOException {
+        logger.debug("사용자 정보 조회 요청 (accessToken 기반)");
         try {
-            String userId = getQueryParameter(exchange, "userId");
-            
-            if (userId == null || userId.trim().isEmpty()) {
-                sendErrorResponse(exchange, 400, "userId 매개변수가 필요합니다");
+            String authHeader = exchange.getRequestHeaders().getFirst("Authorization");
+            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                sendErrorResponse(exchange, 401, "Authorization 헤더가 필요합니다");
                 return;
             }
-            
-            ApiResponse<?> response = userController.getUserInfo(userId);
-            
+            String accessToken = authHeader.substring("Bearer ".length());
+            ApiResponse<?> response = userController.getUserInfoByToken(accessToken);
             if (response.isSuccess()) {
                 sendSuccessResponse(exchange, response);
             } else {
-                sendErrorResponse(exchange, 404, response.getMessage());
+                sendErrorResponse(exchange, 401, response.getMessage());
             }
-            
         } catch (Exception e) {
             logger.error("사용자 정보 조회 중 오류", e);
             sendErrorResponse(exchange, 500, "서버 오류가 발생했습니다");

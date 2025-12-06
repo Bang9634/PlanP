@@ -363,18 +363,21 @@ public class UserService {
      * @throws RuntimeException 사용자가 존재하지 않는 경우
      */
     public java.util.Map<String, Object> getUserPublicInfo(String userId) {
-        Optional<User> user = getUserInfo(userId);
-        if (user.isEmpty()) {
+        Optional<User> userOpt = getUserInfo(userId);
+        if (userOpt.isEmpty()) {
             throw new RuntimeException("사용자를 찾을 수 없습니다");
         }
+        User user = userOpt.get();
+        // 비밀번호 필드 비우기 (보안)
+        user.setPassword("");
         // 공개 가능한 정보만 선별하여 반환
         java.util.Map<String, Object> publicInfo = new java.util.HashMap<>();
-        publicInfo.put("userId", user.get().getUserId());
-        publicInfo.put("name", user.get().getName());
-        publicInfo.put("email", user.get().getEmail());
-        publicInfo.put("isGoogleAccount", user.get().isGoogleAccount());
-        publicInfo.put("createdAt", user.get().getCreatedAt() != null ? user.get().getCreatedAt().toString() : null);
-        publicInfo.put("active", user.get().isActive());
+        publicInfo.put("userId", user.getUserId());
+        publicInfo.put("name", user.getName());
+        publicInfo.put("email", user.getEmail());
+        publicInfo.put("isGoogleAccount", user.isGoogleAccount());
+        publicInfo.put("createdAt", user.getCreatedAt() != null ? user.getCreatedAt().toString() : null);
+        publicInfo.put("active", user.isActive());
         return publicInfo;
     }
 
