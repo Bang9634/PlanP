@@ -142,10 +142,10 @@ export function SignupForm({ onSignup, onLoginClick, onBackToHome }: SignupFormP
             return;
         }
 
-        if (!isEmailVerified) {
-            alert("이메일 인증을 완료해주세요.");
-            return;
-        }
+        //  if (!isEmailVerified) {
+        //     alert("이메일 인증을 완료해주세요.");
+        //     return;
+        // }
 
         if (password !== confirmPassword) {
             alert("비밀번호가 일치하지 않습니다.");

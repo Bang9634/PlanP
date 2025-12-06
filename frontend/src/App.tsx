@@ -173,7 +173,7 @@ export default function App() {
 
             if (result.success) {
                 // 로그인 성공
-                alert(`🎉 ${result.user?.name || id}님 환영합니다!`);
+                alert(` ${result.user?.name || id}님 환영합니다!`);
 
                 setIsLoggedIn(true);
                 // 핵심 : 로그인 성공 후 실제 사용자 정보를 백엔드에서 가져오기
@@ -181,7 +181,7 @@ export default function App() {
                 // 그래서 로그인 직후에 백엔드에게 다시 !내 정보 조회! 요청을 보내야함.
                 // api.ts에 .getMyProfile()
                 // => /users/me 엔드 포인트로 METHOD : GET 요청
-                const profile = await apiService.getMyProfile();
+               // const profile = await apiService.getMyProfile();
                 // 유저 전체 객체 저장 (문자열 X)
                 // MyAccountPage는 user,name,email등 정보가 필요함.
                 // serCurnentUser에 userID 필드를 사용할 시 ID가 뜨고
@@ -190,7 +190,7 @@ export default function App() {
                 setCurrentView("home");
             } else {
                 // 로그인 실패 메시지 반환
-                alert(`❌ 로그인 실패: ${result.message}`);
+                alert(` 로그인 실패: ${result.message}`);
             }
         } catch (error) {
             console.error("로그인 오류:", error);
@@ -213,7 +213,7 @@ export default function App() {
             email,
         });
 
-        // 📌 백엔드 DTO(SignupRequest)에 정확히 맞는 JSON 구조
+        //  백엔드 DTO(SignupRequest)에 정확히 맞는 JSON 구조
         const signupData: SignupRequest = {
             userId: id,
             password: password,
@@ -225,14 +225,39 @@ export default function App() {
             const result = await apiService.signup(signupData);
 
             if (result.success) {
-                alert("🎉 회원가입이 완료되었습니다!");
+                alert(" 회원가입이 완료되었습니다!");
                 setCurrentView("login"); // 🔥 회원가입 후 → 로그인 화면으로 이동
             } else {
-                alert(`❌ 회원가입 실패: ${result.message}`);
+                alert(` 회원가입 실패: ${result.message}`);
             }
         } catch (error) {
             console.error("회원가입 오류:", error);
             alert("서버와 연결할 수 없습니다. 다시 시도해주세요.");
+        }
+    };
+
+
+    const handleGoogleLoginSuccess = async (accessToken: string) => {
+        console.log("Google Access Token 수신 완료. 백엔드로 전송 시작.");
+
+        try {
+            // Access Token을 사용하여 백엔드 API 호출
+            const result = await apiService.googleLogin({ accessToken });
+
+            if (result.success) {
+                // 로그인 성공 처리 (일반 로그인과 동일)
+                alert(` ${result.user?.name || result.user?.userId}님 환영합니다!`);
+
+                setIsLoggedIn(true);
+                setCurrentUser(result.user?.userId || '');
+                setCurrentView("home");
+            } else {
+                // 백엔드 오류 메시지 처리
+                alert(`Google 로그인 처리 실패: ${result.message}`);
+            }
+        } catch (error) {
+            console.error("Google 로그인 오류:", error);
+            alert("서버와 연결할 수 없습니다. 잠시 후 다시 시도해주세요.");
         }
     };
 
@@ -262,6 +287,7 @@ export default function App() {
         onLogin={handleLogin}
         onSignupClick={() => setCurrentView('signup')}
         onBackToHome={goBackToHome}
+        onGoogleLoginSuccess={handleGoogleLoginSuccess}
       />
     );
   }

@@ -121,6 +121,12 @@ export interface LoginResponse {
   refreshToken?: string;
 }
 
+export interface GoogleLoginRequest {
+    accessToken: string; // Google OAuth Access Token
+}
+
+export interface GoogleLoginResponse extends LoginResponse {}
+
 // 6) 내정보 (UserProfile)
 // /users/me API용
 // 프론트 MyAccoutPage에 데이터 구성에 사용할 요소
@@ -352,6 +358,42 @@ export class ApiService {
 
     return response;
   }
+
+    /**
+     * Google OAuth Access Token을 백엔드로 보내 PlanP JWT를 획득하는 API
+     * @param data GoogleLoginRequest (accessToken 포함)
+     * @returns GoogleLoginResponse (PlanP JWT 및 사용자 정보 포함)
+     */
+    async googleLogin(data: GoogleLoginRequest): Promise<GoogleLoginResponse> {
+        console.log(" Google Access Token 기반 로그인 API 호출: /users/auth/google");
+
+        // request 메서드를 사용하여 백엔드 엔드포인트 호출
+        const response = await this.request<GoogleLoginResponse>('/users/auth/google', {
+            method: 'POST',
+            body: JSON.stringify(data),
+            // 인증이 필요한 요청이 아님
+        }, false);
+
+        // 로그인 성공 시 응답으로 받은 PlanP JWT 저장 (기존 로그인 로직 재사용)
+        if (response.success && response.accessToken) {
+            AuthService.saveTokens({
+                accessToken: response.accessToken,
+                refreshToken: response.refreshToken,
+            });
+
+            // 사용자 정보 저장
+            if (response.user) {
+                AuthService.saveUserInfo({
+                    userId: response.user.userId,
+                    name: response.user.name,
+                    email: response.user.email,
+                });
+            }
+        }
+
+        return response;
+    }
+
     // 5) 로그아웃 API
   async logout(): Promise<{ success: boolean; message: string }> {
     const response = await this.request('/users/logout', {
