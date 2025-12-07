@@ -3,6 +3,9 @@ package com.drhong.service;
 import java.util.List;
 import java.util.Optional;
 
+import javax.mail.*;
+import javax.mail.internet.*;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
