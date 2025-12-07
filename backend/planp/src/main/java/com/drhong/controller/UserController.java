@@ -30,6 +30,35 @@ import com.drhong.service.UserService;
  * @since 2025-11-10
  */
 public class UserController {
+    // 이메일 인증 코드 전송
+    public ApiResponse<?> sendEmailCode(String email) {
+        try {
+            boolean sent = userService.sendEmailCode(email);
+            if (sent) {
+                return ApiResponse.success("인증 코드가 이메일로 전송되었습니다.");
+            } else {
+                return ApiResponse.fail("이메일 전송에 실패했습니다. 이미 인증된 이메일이거나 잘못된 요청입니다.");
+            }
+        } catch (Exception e) {
+            logger.warn("이메일 인증 코드 전송 실패: {}", e.getMessage());
+            return ApiResponse.fail("이메일 인증 코드 전송 중 오류가 발생했습니다.");
+        }
+    }
+
+    // 이메일 인증 코드 검증
+    public ApiResponse<?> verifyEmailCode(String email, String code) {
+        try {
+            boolean verified = userService.verifyEmailCode(email, code);
+            if (verified) {
+                return ApiResponse.success("이메일 인증이 완료되었습니다.");
+            } else {
+                return ApiResponse.fail("인증 코드가 올바르지 않거나 만료되었습니다.");
+            }
+        } catch (Exception e) {
+            logger.warn("이메일 인증 코드 검증 실패: {}", e.getMessage());
+            return ApiResponse.fail("이메일 인증 코드 검증 중 오류가 발생했습니다.");
+        }
+    }
 
     /** SLF4J Logger 인스턴스 - 요청 처리 로그를 기록 */
     private static final Logger logger = LoggerFactory.getLogger(UserController.class);

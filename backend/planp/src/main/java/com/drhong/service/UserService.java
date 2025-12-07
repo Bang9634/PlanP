@@ -29,6 +29,51 @@ import com.drhong.validator.SignupValidator;
  */
 public class UserService {
 
+    // 이메일별 인증 코드 저장 (실제 서비스에서는 DB/Redis 등 사용 권장)
+    private final java.util.Map<String, String> emailCodeMap = new java.util.concurrent.ConcurrentHashMap<>();
+    // 인증 완료된 이메일 저장
+    private final java.util.Set<String> verifiedEmails = java.util.Collections.newSetFromMap(new java.util.concurrent.ConcurrentHashMap<>());
+
+    /**
+     * 이메일로 인증 코드 전송 (임시 구현)
+     * @param email
+     * @return 성공 여부
+     */
+    public boolean sendEmailCode(String email) {
+        if (email == null || email.trim().isEmpty()) return false;
+        if (verifiedEmails.contains(email)) return false;
+        // 6자리 랜덤 코드 생성
+        String code = String.format("%06d", (int)(Math.random() * 1000000));
+        emailCodeMap.put(email, code);
+        // 실제 서비스에서는 이메일 발송 로직 필요
+        System.out.println("[이메일 인증] " + email + " 코드: " + code);
+        return true;
+    }
+
+    /**
+     * 이메일 인증 코드 검증
+     * @param email
+     * @param code
+     * @return 성공 여부
+     */
+    public boolean verifyEmailCode(String email, String code) {
+        if (email == null || code == null) return false;
+        String realCode = emailCodeMap.get(email);
+        if (realCode != null && realCode.equals(code)) {
+            verifiedEmails.add(email);
+            emailCodeMap.remove(email);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * 해당 이메일이 인증되었는지 확인
+     */
+    public boolean isEmailVerified(String email) {
+        return verifiedEmails.contains(email);
+    }
+
     /** SLF4J 로거 인스턴스 - 비즈니스 로직 처리 과정 로깅 */
     private static final Logger logger = LoggerFactory.getLogger(UserService.class);
     

@@ -26,6 +26,64 @@ public class UserHandler extends BaseHandler {
         
         // 사용자 정보 조회 라우트 (accessToken 기반)
         post("/get-info", this::handleGetUserInfoByToken);
+
+        // 이메일 인증 관련 라우트
+        post("/send-email-code", this::handleSendEmailCode);
+        post("/verify-email-code", this::handleVerifyEmailCode);
+    }
+    /**
+     * 이메일 인증 코드 전송 요청 처리
+     * POST /api/users/send-email-code
+     * body: { "email": "user@example.com" }
+     */
+    private void handleSendEmailCode(HttpExchange exchange) throws IOException {
+        logger.debug("이메일 인증 코드 전송 요청");
+        try {
+            String requestBody = readRequestBody(exchange);
+            com.google.gson.JsonObject json = gson.fromJson(requestBody, com.google.gson.JsonObject.class);
+            if (json == null || !json.has("email")) {
+                sendErrorResponse(exchange, 400, "이메일이 필요합니다");
+                return;
+            }
+            String email = json.get("email").getAsString();
+            ApiResponse<?> response = userController.sendEmailCode(email);
+            if (response.isSuccess()) {
+                sendSuccessResponse(exchange, response);
+            } else {
+                sendErrorResponse(exchange, 400, response.getMessage());
+            }
+        } catch (Exception e) {
+            logger.warn("이메일 인증 코드 전송 중 오류", e);
+            sendErrorResponse(exchange, 500, "이메일 인증 코드 전송 실패");
+        }
+    }
+
+    /**
+     * 이메일 인증 코드 검증 요청 처리
+     * POST /api/users/verify-email-code
+     * body: { "email": "user@example.com", "code": "123456" }
+     */
+    private void handleVerifyEmailCode(HttpExchange exchange) throws IOException {
+        logger.debug("이메일 인증 코드 검증 요청");
+        try {
+            String requestBody = readRequestBody(exchange);
+            com.google.gson.JsonObject json = gson.fromJson(requestBody, com.google.gson.JsonObject.class);
+            if (json == null || !json.has("email") || !json.has("code")) {
+                sendErrorResponse(exchange, 400, "이메일과 인증 코드가 필요합니다");
+                return;
+            }
+            String email = json.get("email").getAsString();
+            String code = json.get("code").getAsString();
+            ApiResponse<?> response = userController.verifyEmailCode(email, code);
+            if (response.isSuccess()) {
+                sendSuccessResponse(exchange, response);
+            } else {
+                sendErrorResponse(exchange, 400, response.getMessage());
+            }
+        } catch (Exception e) {
+            logger.warn("이메일 인증 코드 검증 중 오류", e);
+            sendErrorResponse(exchange, 500, "이메일 인증 코드 검증 실패");
+        }
     }
 
     @Override
