@@ -35,19 +35,49 @@ public class UserService {
     private final java.util.Set<String> verifiedEmails = java.util.Collections.newSetFromMap(new java.util.concurrent.ConcurrentHashMap<>());
 
     /**
-     * 이메일로 인증 코드 전송 (임시 구현)
+     * 이메일로 인증 코드 전송 (네이버 SMTP 실제 발송)
      * @param email
      * @return 성공 여부
      */
     public boolean sendEmailCode(String email) {
         if (email == null || email.trim().isEmpty()) return false;
         if (verifiedEmails.contains(email)) return false;
-        // 6자리 랜덤 코드 생성
         String code = String.format("%06d", (int)(Math.random() * 1000000));
         emailCodeMap.put(email, code);
-        // 실제 서비스에서는 이메일 발송 로직 필요
-        System.out.println("[이메일 인증] " + email + " 코드: " + code);
-        return true;
+        try {
+            sendNaverMail(email, code);
+            logger.info("[이메일 인증] {} → 코드: {} (네이버 SMTP 발송)", email, code);
+            return true;
+        } catch (Exception e) {
+            logger.error("이메일 인증코드 발송 실패: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    // 네이버 SMTP로 메일 발송 (javax.mail 필요)
+    private void sendNaverMail(String to, String code) throws Exception {
+        final String username = "joochoo1815@naver.com"; // 본인 네이버 메일 주소
+        final String password = "M4QFEDCWWZKC"; // 발급받은 앱 비밀번호
+
+        java.util.Properties props = new java.util.Properties();
+        props.put("mail.smtp.host", "smtp.naver.com");
+        props.put("mail.smtp.port", "587");
+        props.put("mail.smtp.auth", "true");
+        props.put("mail.smtp.starttls.enable", "true");
+
+        javax.mail.Session session = javax.mail.Session.getInstance(props, new javax.mail.Authenticator() {
+            protected javax.mail.PasswordAuthentication getPasswordAuthentication() {
+                return new javax.mail.PasswordAuthentication(username, password);
+            }
+        });
+
+        javax.mail.Message message = new javax.mail.internet.MimeMessage(session);
+        message.setFrom(new javax.mail.internet.InternetAddress(username));
+        message.setRecipients(javax.mail.Message.RecipientType.TO, javax.mail.internet.InternetAddress.parse(to));
+        message.setSubject("플랜P 이메일 인증 코드");
+        message.setText("인증 코드: " + code);
+
+        javax.mail.Transport.send(message);
     }
 
     /**

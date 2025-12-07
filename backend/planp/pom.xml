@@ -15,6 +15,12 @@
     </properties>
 
     <dependencies>
+                <!-- 이메일 인증용 JavaMail 라이브러리 -->
+                <dependency>
+                    <groupId>com.sun.mail</groupId>
+                    <artifactId>javax.mail</artifactId>
+                    <version>1.6.2</version>
+                </dependency>
         <!-- mysql 의존성 추가 -->
         <dependency>
             <groupId>mysql</groupId>
