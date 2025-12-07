@@ -85,6 +85,11 @@ public class UserController {
     public ApiResponse<?> signup(SignupRequest request) {
         logger.debug("회원가입 시작");
         try {
+            // 이메일 인증 여부 체크
+            if (!userService.isEmailVerified(request.getEmail())) {
+                logger.warn("이메일 인증 미완료: {}", request.getEmail());
+                return ApiResponse.fail("이메일 인증이 필요합니다");
+            }
             Optional<User> user = userService.signup(request);
 
             // 향후 추가될 기능들:
