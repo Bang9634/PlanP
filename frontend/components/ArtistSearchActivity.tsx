@@ -1,75 +1,56 @@
 import { useState } from 'react';
 import { Button } from './ui/button';
+import { Card, CardContent } from './ui/card';
 import { Input } from './ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { ArrowLeft, Search, Music, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Search, Play, Clock, ExternalLink } from 'lucide-react';
+import MusicService, { Track } from '../services/MusicService';
 
 interface ArtistSearchActivityProps {
   onBack: () => void;
   onComplete: () => void;
 }
 
-interface Artist {
-  id: string;
-  name: string;
-  newSongs: string[];
-  image?: string;
-}
-
-// 샘플 가수 데이터
-const sampleArtists: Artist[] = [
-  {
-    id: 'iu',
-    name: '아이유(IU)',
-    newSongs: ['Love wins all', 'Holssi', '아이와 나의 바다'],
-    image: '🎤'
-  },
-  {
-    id: 'bts',
-    name: 'BTS',
-    newSongs: ['Dynamite', 'Butter', 'Permission to Dance'],
-    image: '🎵'
-  },
-  {
-    id: 'newjeans',
-    name: 'NewJeans',
-    newSongs: ['Get Up', 'Super Shy', 'ETA'],
-    image: '🌟'
-  },
-  {
-    id: 'lesserafim',
-    name: 'LE SSERAFIM',
-    newSongs: ['UNFORGIVEN', 'Eve, Psyche & The Bluebeard', 'CRAZY'],
-    image: '🔥'
-  },
-  {
-    id: 'aespa',
-    name: 'aespa',
-    newSongs: ['Spicy', 'Better Things', 'Drama'],
-    image: '✨'
-  }
-];
-
 export function ArtistSearchActivity({ onBack, onComplete }: ArtistSearchActivityProps) {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedArtist, setSelectedArtist] = useState<Artist | null>(null);
-  const [showResults, setShowResults] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [tracks, setTracks] = useState<Track[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
 
-  const handleSearch = () => {
-    if (searchTerm.trim()) {
-      setShowResults(true);
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) return;
+
+    setLoading(true);
+
+    try {
+      const results = await MusicService.searchArtist(searchQuery, 20);
+      setTracks(results);
+    } catch (error) {
+      console.error('아티스트 검색 실패:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleArtistSelect = (artist: Artist) => {
-    setSelectedArtist(artist);
+  const playPreview = (previewUrl: string) => {
+    if (currentAudio) {
+      currentAudio.pause();
+    }
+
+    const audio = new Audio(previewUrl);
+    audio.play();
+    setCurrentAudio(audio);
+
+    audio.addEventListener('ended', () => {
+      setCurrentAudio(null);
+    });
   };
 
-  const filteredArtists = sampleArtists.filter(artist =>
-    artist.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const displayArtists = showResults && searchTerm ? filteredArtists : sampleArtists;
+  const stopPreview = () => {
+    if (currentAudio) {
+      currentAudio.pause();
+      setCurrentAudio(null);
+    }
+  };
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -78,108 +59,111 @@ export function ArtistSearchActivity({ onBack, onComplete }: ArtistSearchActivit
           <ArrowLeft className="w-4 h-4" />
           뒤로가기
         </Button>
-        <h2 className="mb-2">가수 신곡 추천</h2>
+        <h2 className="mb-2">🎤 좋아하는 아티스트 찾기</h2>
         <p className="text-muted-foreground">
-          좋아하는 가수를 검색하고 최신곡을 발견해보세요!
+          아티스트 이름을 검색하고 최신 곡들을 들어보세요
         </p>
       </div>
 
-      {!selectedArtist ? (
-        <div className="space-y-6">
-          {/* 검색 영역 */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Search className="w-5 h-5" />
-                가수 검색
-              </CardTitle>
-              <CardDescription>
-                가수 이름을 입력하거나 아래 추천 목록에서 선택해보세요
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="가수 이름을 입력하세요 (예: 아이유, BTS)"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                />
-                <Button onClick={handleSearch}>검색</Button>
-              </div>
-            </CardContent>
-          </Card>
+      {/* 검색 */}
+      <div className="flex gap-2 mb-6">
+        <Input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+          placeholder="아티스트 이름 검색 (예: 아이유, BTS, Taylor Swift)"
+          className="flex-1"
+        />
+        <Button onClick={handleSearch} className="gap-2">
+          <Search className="w-4 h-4" />
+          검색
+        </Button>
+      </div>
 
-          {/* 가수 목록 */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {displayArtists.map((artist) => (
-              <Card 
-                key={artist.id}
-                className="cursor-pointer hover:bg-muted/50 transition-all duration-200 hover:scale-105"
-                onClick={() => handleArtistSelect(artist)}
-              >
-                <CardContent className="p-6 text-center">
-                  <div className="text-4xl mb-3">{artist.image}</div>
-                  <h3 className="font-medium mb-2">{artist.name}</h3>
-                  <p className="text-sm text-muted-foreground">
-                    신곡 {artist.newSongs.length}곡 보기
-                  </p>
+      {/* 로딩 */}
+      {loading && (
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">검색 중...</p>
+        </div>
+      )}
+
+      {/* 트랙 목록 */}
+      {!loading && tracks.length > 0 && (
+        <>
+          <div className="grid gap-4 mb-8">
+            {tracks.map((track) => (
+              <Card key={track.id} className="hover:shadow-md transition-shadow">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-4">
+                    <img 
+                      src={track.albumCover} 
+                      alt={track.album}
+                      className="w-16 h-16 rounded object-cover"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-medium truncate">{track.title}</h3>
+                      <p className="text-sm text-muted-foreground truncate">{track.artist}</p>
+                      <p className="text-xs text-muted-foreground truncate">{track.album}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">
+                        <Clock className="w-3 h-3 inline mr-1" />
+                        {Math.floor(track.duration / 60)}:{String(track.duration % 60).padStart(2, '0')}
+                      </span>
+                    </div>
+                    <div className="flex gap-2">
+                      {track.preview && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => playPreview(track.preview)}
+                        >
+                          <Play className="w-4 h-4" />
+                        </Button>
+                      )}
+                      {track.itunesUrl && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => window.open(track.itunesUrl, '_blank')}
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             ))}
           </div>
 
-          {showResults && filteredArtists.length === 0 && (
-            <div className="text-center py-8">
-              <p className="text-muted-foreground">
-                검색 결과가 없습니다. 다른 가수를 검색해보세요.
-              </p>
-            </div>
-          )}
-        </div>
-      ) : (
-        /* 선택된 가수의 신곡 표시 */
-        <div className="space-y-6">
-          <Card>
-            <CardHeader className="text-center">
-              <div className="text-6xl mb-4">{selectedArtist.image}</div>
-              <CardTitle>{selectedArtist.name}의 최신곡</CardTitle>
-              <CardDescription>
-                따끈따끈한 신곡들을 확인해보세요!
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {selectedArtist.newSongs.map((song, index) => (
-                  <div key={index} className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-                    <Music className="w-5 h-5 text-primary" />
-                    <span className="flex-1 font-medium">{song}</span>
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      onClick={() => window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(selectedArtist.name + ' ' + song)}`, '_blank')}
-                    >
-                      듣기
-                    </Button>
-                  </div>
-                ))}
-              </div>
+          <div className="text-center">
+            <Button onClick={onComplete} size="lg">
+              ✅ 활동 완료하기
+            </Button>
+          </div>
+        </>
+      )}
 
-              <div className="text-center mt-8">
-                <Button 
-                  onClick={onComplete}
-                  className="gap-2 bg-green-600 hover:bg-green-700"
-                  size="lg"
-                >
-                  <CheckCircle2 className="w-5 h-5" />
-                  활동 완료하기! 🎉
-                </Button>
-                <p className="text-sm text-muted-foreground mt-3">
-                  새로운 음악을 발견했다면 완료해주세요!
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+      {!loading && tracks.length === 0 && searchQuery && (
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">
+            검색 결과가 없습니다. 다른 아티스트를 검색해보세요.
+          </p>
+        </div>
+      )}
+
+      {/* 재생 중 정지 버튼 */}
+      {currentAudio && (
+        <div className="fixed bottom-6 right-6">
+          <Button
+            onClick={stopPreview}
+            className="px-6 py-3 bg-red-600 text-white rounded-full shadow-lg hover:bg-red-700"
+          >
+            ⏹ 정지
+          </Button>
         </div>
       )}
     </div>

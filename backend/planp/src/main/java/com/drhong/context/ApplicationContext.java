@@ -6,15 +6,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.drhong.config.DatabaseConfig;
+import com.drhong.controller.MusicController;
 import com.drhong.controller.UserController;
 import com.drhong.database.ConnectionManager;
 import com.drhong.database.QueryExecutor;
 import com.drhong.handler.HealthCheckHandler;
+import com.drhong.handler.MusicHandler;
 import com.drhong.handler.UserHandler;
 import com.drhong.repository.UserRepository;
 import com.drhong.server.AuthenticationFilter;
 import com.drhong.service.GoogleOAuthService;
 import com.drhong.service.JwtService;
+import com.drhong.service.MusicRecommendationService;
 import com.drhong.service.UserService;
 public class ApplicationContext{
     protected final Logger logger = LoggerFactory.getLogger(getClass());
@@ -37,6 +40,10 @@ public class ApplicationContext{
     private final UserController userController;
     private final UserHandler userHandler;
 
+    private final MusicRecommendationService musicRecommendationService;
+    private final MusicController musicController;
+    private final MusicHandler musicHandler;
+
     public ApplicationContext() {
         logger.debug("의존성 초기화 시작");
         try {
@@ -51,13 +58,16 @@ public class ApplicationContext{
             this.jwtService = new JwtService();
             this.userService = new UserService(userRepository);
             this.googleOAuthService = new GoogleOAuthService();
+            this.musicRecommendationService = new MusicRecommendationService();
             
             // 컨트롤러 계층
             this.userController = new UserController(userService, jwtService,googleOAuthService);
-
+            this.musicController = new MusicController(musicRecommendationService);
+            
             // 핸들러 계층
             this.healthCheckHandler = new HealthCheckHandler();
             this.userHandler = new UserHandler(userController);
+            this.musicHandler = new MusicHandler(musicController);
 
             // 필터 계층
             this.authenticationFilter = new AuthenticationFilter(jwtService);
@@ -73,6 +83,7 @@ public class ApplicationContext{
     public UserHandler getUserHandler() { return userHandler; }
     public HealthCheckHandler getHealthCheckHandler() { return healthCheckHandler; }
     public AuthenticationFilter getAuthenticationFilter() { return authenticationFilter; }
+    public MusicHandler getMusicHandler() { return musicHandler; }
 
     public void shutdown() throws SQLException {
         try {

@@ -88,6 +88,10 @@ public class EnvironmentConfig {
     public static int getPort() {
         return Integer.parseInt(getEnvValue("PLANP_PORT", "8080"));
     }
+
+    public static String getGeminiApiKey() {
+        return getEnvValue("GEMINI_API_KEY", "");
+    }
     
     /**
      * CORS(Cross-Origin Resource Sharing)에서 허용할 오리진 목록을 반환한다.

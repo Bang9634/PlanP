@@ -145,6 +145,7 @@ public class Main {
                 .allowedOrigins(Arrays.asList(EnvironmentConfig.getAllowedOrigins()))
                 .addPublicRoute("/health", applicationContext.getHealthCheckHandler())
                 .addProtectedRoute("/api/users", applicationContext.getUserHandler(), applicationContext.getAuthenticationFilter())
+                .addProtectedRoute("/api/music", applicationContext.getMusicHandler(), applicationContext.getAuthenticationFilter())
                 .build();
 
 

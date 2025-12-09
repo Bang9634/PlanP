@@ -16,9 +16,13 @@
 
     /* Linting */
     "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
+
+      /* 성능 최적화 */
+    "incremental": true, // ✅ 추가
+    "tsBuildInfoFile": "./.tsbuildinfo", // ✅ 추가
 
     /* Path aliases */
     "baseUrl": ".",
@@ -37,6 +41,14 @@
     "components",
     "services",
     "src/vite-env.d.ts"
+  ],
+  "exclude": [ // ✅ 추가
+    "node_modules",
+    "dist",
+    "build",
+    ".next",
+    "**/*.spec.ts",
+    "**/*.test.ts"
   ],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

@@ -111,14 +111,14 @@ export interface LoginRequest {
 export interface LoginResponse {
   success: boolean;
   message: string;
-  user?: {
+  timestamp?: number;
+  data?: { // data 객체 추가
     userId: string;
     name: string;
-    email: string;
+    email?: string;
+    accessToken: string;
+    refreshToken?: string;
   };
-  // 로그인후 생성된 토큰을 받음
-  accessToken?: string;
-  refreshToken?: string;
 }
 
 export interface GoogleLoginRequest {
@@ -341,19 +341,28 @@ export class ApiService {
     }, false);
 
     // 로그인 성공 시 토큰 저장
-    if (response.success && response.accessToken) {
-      AuthService.saveTokens({
-        accessToken: response.accessToken,
-        refreshToken: response.refreshToken,
+    if (response.success && response.data) {
+      const { accessToken, refreshToken, userId, name, email } = response.data;
+
+      console.log('✅ 토큰 저장 시도:', {
+        access: accessToken?.substring(0, 20) + '...',
+        refresh: refreshToken?.substring(0, 20) + '...'
       });
 
-      if (response.user) {
-        AuthService.saveUserInfo({
-          userId: response.user.userId,
-          name: response.user.name,
-          email: response.user.email,
-        });
-      }
+      AuthService.saveTokens({
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+      });
+
+      AuthService.saveUserInfo({
+        userId,
+        name,
+        email: email || '',
+      });
+      console.log('💾 localStorage 확인:', {
+        access: localStorage.getItem('planp_access_token'),
+        user: localStorage.getItem('planp_user_info')
+      });
     }
 
     return response;
@@ -373,9 +382,11 @@ export class ApiService {
             body: JSON.stringify(data),
             // 인증이 필요한 요청이 아님
         }, false);
+        console.debug('성공 여부:', response.success, '토큰:', response.accessToken);
 
         // 로그인 성공 시 응답으로 받은 PlanP JWT 저장 (기존 로그인 로직 재사용)
         if (response.success && response.accessToken) {
+          console.debug('토큰 저장 시도');
             AuthService.saveTokens({
                 accessToken: response.accessToken,
                 refreshToken: response.refreshToken,
@@ -383,6 +394,7 @@ export class ApiService {
 
             // 사용자 정보 저장
             if (response.user) {
+              console.debug('사용자 정보 저장 시도');
                 AuthService.saveUserInfo({
                     userId: response.user.userId,
                     name: response.user.name,
@@ -441,7 +453,38 @@ export class ApiService {
         });
     }
 
+    /**
+   * AI 기반 장르별 음악 추천 (Gemini)
+   * 
+   * @param genre 음악 장르 (예: KPOP, ROCK)
+   * @param count 추천받을 곡 수 (기본: 15)
+   * @returns 추천된 곡 제목 리스트 ("Artist - Song" 형식)
+   */
+  async getAIRecommendationsByGenre(genre: string, count: number = 3): Promise<string[]> {
+    try {
+      const response = await this.request<{
+        success: boolean;
+        message: string;
+        data: {
+          genre: string;
+          count: number;
+          songs: string[];
+        };
+      }>(`/music/recommend-by-genre?genre=${encodeURIComponent(genre)}&count=${count}`, {}, true);
 
+      if (response.success && response.data) {
+        console.log(`✅ 백엔드 AI 추천 성공: ${response.data.songs.length}곡`);
+        return response.data.songs;
+      }
+
+      console.warn('⚠️ AI 추천 응답 형식 오류:', response);
+      return [];
+      
+    } catch (error) {
+      console.error('❌ AI 음악 추천 실패:', error);
+      return [];
+    }
+  }
 
 
   // Health Check
