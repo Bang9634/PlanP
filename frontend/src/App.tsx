@@ -324,7 +324,7 @@ export default function App() {
       <div className="min-h-screen bg-background">
         <div className="border-b bg-card">
           <div className="container mx-auto px-4 py-4">
-            <Button variant="ghost" onClick={handleBackToHome} className="mb-4">
+            <Button variant="ghost" onClick={goBackToHome} className="mb-4">
               ← 뒤로가기
             </Button>
             <h1 className="text-2xl font-medium mb-2">루틴 관리</h1>

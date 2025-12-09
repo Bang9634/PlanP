@@ -73,18 +73,6 @@ export function Header({ isLoggedIn, currentView, onViewChange, onLogout, curren
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
-
-            {!isLoggedIn && (
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => onViewChange('login')}
-                className="gap-2"
-              >
-                <User className="w-4 h-4" />
-                내 계정
-              </Button>
-            )}
           </div>
         </div>
       </div>
