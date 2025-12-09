@@ -1,187 +1,272 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from './ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { ArrowLeft, Music, CheckCircle2, Play } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Sparkles, Lock } from 'lucide-react';
+import MusicService, { Track } from '../services/MusicService';
+import { TrackList } from './TrackList';
+import { useMusicPlayer } from '../hooks/useMusicPlayer';
+import { AuthService } from '../services/AuthService';
 
 interface GenreExplorationActivityProps {
   onBack: () => void;
   onComplete: () => void;
 }
 
-interface Genre {
-  id: string;
-  name: string;
-  description: string;
-  emoji: string;
-  color: string;
-  sampleSongs: string[];
-}
-
-const genres: Genre[] = [
-  {
-    id: 'jazz',
-    name: '재즈 (Jazz)',
-    description: '부드럽고 즉흥적인 멜로디',
-    emoji: '🎷',
-    color: 'bg-amber-100 text-amber-700',
-    sampleSongs: ['Take Five - Dave Brubeck', 'Fly Me to the Moon - Frank Sinatra', 'Autumn Leaves - Bill Evans']
-  },
-  {
-    id: 'electronic',
-    name: '일렉트로닉 (Electronic)',
-    description: '신스사이저와 비트의 조화',
-    emoji: '🎛️',
-    color: 'bg-purple-100 text-purple-700',
-    sampleSongs: ['Midnight City - M83', 'Strobe - Deadmau5', 'Opus - Eric Prydz']
-  },
-  {
-    id: 'indie',
-    name: '인디 (Indie)',
-    description: '독창적이고 감성적인 사운드',
-    emoji: '🎸',
-    color: 'bg-green-100 text-green-700',
-    sampleSongs: ['Somebody Else - The 1975', 'Young Folks - Peter Bjorn and John', 'Float On - Modest Mouse']
-  },
-  {
-    id: 'classical',
-    name: '클래식 (Classical)',
-    description: '오케스트라의 웅장한 선율',
-    emoji: '🎼',
-    color: 'bg-blue-100 text-blue-700',
-    sampleSongs: ['Canon in D - Pachelbel', 'Für Elise - Beethoven', 'The Four Seasons - Vivaldi']
-  },
-  {
-    id: 'reggae',
-    name: '레게 (Reggae)',
-    description: '자메이카의 리듬감 넘치는 음악',
-    emoji: '🌴',
-    color: 'bg-yellow-100 text-yellow-700',
-    sampleSongs: ['Three Little Birds - Bob Marley', 'No Woman No Cry - Bob Marley', 'Is This Love - Bob Marley']
-  },
-  {
-    id: 'folk',
-    name: '포크 (Folk)',
-    description: '어쿠스틱 기타의 따뜻한 선율',
-    emoji: '🪕',
-    color: 'bg-orange-100 text-orange-700',
-    sampleSongs: ['The Sound of Silence - Simon & Garfunkel', 'Blowin in the Wind - Bob Dylan', 'Big Yellow Taxi - Joni Mitchell']
-  }
+const genres = [
+  { id: 'KPOP', name: 'K-POP', emoji: '🇰🇷', color: 'bg-purple-100 hover:bg-purple-200 text-purple-700' },
+  { id: 'POP', name: 'POP', emoji: '🎤', color: 'bg-pink-100 hover:bg-pink-200 text-pink-700' },
+  { id: 'ROCK', name: 'ROCK', emoji: '🎸', color: 'bg-orange-100 hover:bg-orange-200 text-orange-700' },
+  { id: 'HIPHOP', name: 'HIP-HOP', emoji: '🎧', color: 'bg-yellow-100 hover:bg-yellow-200 text-yellow-700' },
+  { id: 'JAZZ', name: 'JAZZ', emoji: '🎷', color: 'bg-blue-100 hover:bg-blue-200 text-blue-700' },
+  { id: 'CLASSICAL', name: 'CLASSICAL', emoji: '🎼', color: 'bg-indigo-100 hover:bg-indigo-200 text-indigo-700' },
+  { id: 'ELECTRONIC', name: 'EDM', emoji: '⚡', color: 'bg-cyan-100 hover:bg-cyan-200 text-cyan-700' },
+  { id: 'RNB', name: 'R&B', emoji: '💿', color: 'bg-rose-100 hover:bg-rose-200 text-rose-700' },
+  { id: 'ALTERNATIVE', name: '얼터너티브', emoji: '🎹', color: 'bg-emerald-100 hover:bg-emerald-200 text-emerald-700' },
+  { id: 'FOLK', name: '포크', emoji: '🪕', color: 'bg-amber-100 hover:bg-amber-200 text-amber-700' },
 ];
 
 export function GenreExplorationActivity({ onBack, onComplete }: GenreExplorationActivityProps) {
-  const [selectedGenre, setSelectedGenre] = useState<Genre | null>(null);
-  const [currentStep, setCurrentStep] = useState<'select' | 'explore'>('select');
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
+  const [tracks, setTracks] = useState<Track[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  
+  const { currentAudio, playPreview, stopPreview } = useMusicPlayer();
 
-  const handleGenreSelect = (genre: Genre) => {
-    setSelectedGenre(genre);
-    setCurrentStep('explore');
+  const hasLoadedInitial = useRef(false);
+
+  useEffect(() => {
+    const checkAuth = () => {
+      const authenticated = AuthService.isAuthenticated();
+      setIsAuthenticated(authenticated);
+      setIsAuthChecking(false);
+      
+      if (!authenticated) {
+        console.warn('⚠️ 로그인이 필요한 기능입니다');
+      }
+    };
+
+    checkAuth();
+  }, []);
+
+  const loadTracks = async (genreId: string) => {
+    if (!isAuthenticated) {
+      console.warn('⚠️ 로그인이 필요합니다');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      console.log(`🎸 AI 장르별 검색: ${genreId}`);
+      
+      const results = await MusicService.getTracksByGenreWithAI(genreId, 20);
+      
+      if (results.length > 0) {
+        setTracks(results);
+      } else {
+        console.warn('검색 결과 없음, 인기 차트 로드');
+        const fallback = await MusicService.getTopTracks(20);
+        setTracks(fallback);
+      }
+      
+      setLastUpdated(new Date());
+    } catch (error) {
+      console.error('검색 실패:', error);
+      
+      if (error instanceof Error && error.message.includes('인증')) {
+        AuthService.logout();
+        setIsAuthenticated(false);
+        alert('세션이 만료되었습니다. 다시 로그인해주세요.');
+        onBack();
+        return;
+      }
+      
+      const fallback = await MusicService.getTopTracks(20);
+      setTracks(fallback);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleBackToGenres = () => {
-    setCurrentStep('select');
-    setSelectedGenre(null);
+  useEffect(() => {
+    if (isAuthenticated && !isAuthChecking && !hasLoadedInitial.current) {
+      console.log('🎵 초기 장르 로드: KPOP');
+      hasLoadedInitial.current = true;
+      setSelectedGenre('KPOP');
+      loadTracks('KPOP');
+    }
+  }, [isAuthenticated, isAuthChecking]);
+
+  useEffect(() => {
+    return () => {
+      if (currentAudio) {
+        currentAudio.pause();
+      }
+    };
+  }, [currentAudio]);
+
+  const handleGenreSelect = async (genreId: string) => {
+    if (!isAuthenticated) {
+      alert('🔒 로그인이 필요한 기능입니다');
+      return;
+    }
+
+    setSelectedGenre(genreId);
+    await loadTracks(genreId);
   };
 
-  return (
-    <div className="max-w-4xl mx-auto">
-      <div className="mb-8">
-        <Button 
-          variant="ghost" 
-          onClick={currentStep === 'select' ? onBack : handleBackToGenres} 
-          className="gap-2 mb-4"
-        >
+  const refreshChart = async () => {
+    if (!selectedGenre || !isAuthenticated) return;
+    
+    setIsRefreshing(true);
+    await new Promise(resolve => setTimeout(resolve, 500));
+    await loadTracks(selectedGenre);
+    setIsRefreshing(false);
+  };
+
+  if (isAuthChecking) {
+    return (
+      <div className="max-w-6xl mx-auto text-center py-12">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+        <p className="text-muted-foreground">인증 확인 중...</p>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="max-w-6xl mx-auto text-center py-12">
+        <Button variant="ghost" onClick={onBack} className="gap-2 mb-4">
           <ArrowLeft className="w-4 h-4" />
           뒤로가기
         </Button>
-        <h2 className="mb-2">
-          {currentStep === 'select' ? '새로운 장르 탐색' : `${selectedGenre?.name} 탐색`}
-        </h2>
-        <p className="text-muted-foreground">
-          {currentStep === 'select' 
-            ? '평소 안 듣던 음악 장르에 도전해보세요!' 
-            : '이 장르의 대표적인 곡들을 들어보세요'}
-        </p>
+        
+        <div className="flex flex-col items-center gap-4 mt-12">
+          <Lock className="w-16 h-16 text-muted-foreground" />
+          <h2 className="text-2xl font-bold">로그인이 필요합니다</h2>
+          <p className="text-muted-foreground">
+            장르별 음악 탐색은 로그인 후 이용하실 수 있습니다.
+          </p>
+          <Button onClick={onBack} size="lg" className="mt-4">
+            돌아가기
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-6xl mx-auto">
+      {/* 헤더 */}
+      <div className="mb-8">
+        <Button variant="ghost" onClick={onBack} className="gap-2 mb-4">
+          <ArrowLeft className="w-4 h-4" />
+          뒤로가기
+        </Button>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="mb-2 flex items-center gap-2">
+              🎸 장르별 음악 탐색
+              <Sparkles className="w-5 h-5 text-yellow-500 animate-pulse" />
+            </h2>
+            <p className="text-muted-foreground">
+              Gemini AI가 추천하는 장르별 인기곡 🤖✨
+            </p>
+          </div>
+          
+          {/* 컨트롤 버튼 */}
+          {selectedGenre && (
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-muted-foreground">
+                {lastUpdated.toLocaleTimeString('ko-KR', { 
+                  hour: '2-digit', 
+                  minute: '2-digit' 
+                })} 업데이트
+              </span>
+              <Button
+                onClick={refreshChart}
+                disabled={isRefreshing}
+                variant="outline"
+                size="sm"
+                className="gap-2"
+              >
+                <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                새로고침
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
 
-      {currentStep === 'select' ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {genres.map((genre) => (
-            <Card 
-              key={genre.id}
-              className="cursor-pointer hover:bg-muted/50 transition-all duration-200 hover:scale-105"
-              onClick={() => handleGenreSelect(genre)}
-            >
-              <CardContent className="p-6">
-                <div className="text-center mb-4">
-                  <div className="text-4xl mb-3">{genre.emoji}</div>
-                  <h3 className="font-medium mb-2">{genre.name}</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {genre.description}
-                  </p>
-                </div>
-                <div className={`text-center py-2 px-3 rounded-lg text-sm ${genre.color}`}>
-                  탐색하기
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+      {/* 장르 선택 */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 mb-8">
+        {genres.map((genre) => (
+          <Button
+            key={genre.id}
+            variant={selectedGenre === genre.id ? 'default' : 'outline'}
+            onClick={() => handleGenreSelect(genre.id)}
+            className={`h-auto p-4 flex flex-col items-center gap-2 transition-all ${
+              selectedGenre === genre.id 
+                ? '' 
+                : genre.color
+            }`}
+          >
+            <span className="text-2xl">{genre.emoji}</span>
+            <span className="text-sm">{genre.name}</span>
+          </Button>
+        ))}
+      </div>
+
+      {/* 로딩 */}
+      {loading && (
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">
+            🤖 Gemini AI가 {genres.find(g => g.id === selectedGenre)?.name} 추천곡을 찾고 있어요...
+          </p>
         </div>
-      ) : selectedGenre && (
-        <div className="space-y-6">
-          <Card>
-            <CardHeader className="text-center">
-              <div className="text-6xl mb-4">{selectedGenre.emoji}</div>
-              <CardTitle>{selectedGenre.name}</CardTitle>
-              <CardDescription>
-                {selectedGenre.description}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <h4 className="font-medium mb-4 text-center">추천 곡 목록</h4>
-              <div className="space-y-3">
-                {selectedGenre.sampleSongs.map((song, index) => (
-                  <div key={index} className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg">
-                    <div className={`p-2 rounded-full ${selectedGenre.color}`}>
-                      <Music className="w-4 h-4" />
-                    </div>
-                    <span className="flex-1 font-medium">{song}</span>
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      className="gap-2"
-                      onClick={() => window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(song)}`, '_blank')}
-                    >
-                      <Play className="w-3 h-3" />
-                      듣기
-                    </Button>
-                  </div>
-                ))}
-              </div>
+      )}
 
-              <div className="mt-8 p-4 bg-gradient-to-r from-primary/5 to-purple-500/5 rounded-lg border border-primary/10">
-                <h4 className="font-medium mb-2">💡 탐색 팁</h4>
-                <ul className="text-sm text-muted-foreground space-y-1">
-                  <li>• 각 곡을 최소 30초 이상 들어보세요</li>
-                  <li>• 마음에 드는 곡이 있다면 비슷한 아티스트를 찾아보세요</li>
-                  <li>• 이 장르의 특징적인 악기나 리듬에 주목해보세요</li>
-                </ul>
-              </div>
+      {/* 트랙 목록 */}
+      {!loading && tracks.length > 0 && (
+        <>
+          <div className="mb-4">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-yellow-500" />
+              {genres.find(g => g.id === selectedGenre)?.name} AI 추천 곡 🤖
+            </h3>
+          </div>
 
-              <div className="text-center mt-8">
-                <Button 
-                  onClick={onComplete}
-                  className="gap-2 bg-green-600 hover:bg-green-700"
-                  size="lg"
-                >
-                  <CheckCircle2 className="w-5 h-5" />
-                  활동 완료하기! 🎉
-                </Button>
-                <p className="text-sm text-muted-foreground mt-3">
-                  새로운 장르를 탐색했다면 완료해주세요!
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          <TrackList 
+            tracks={tracks} 
+            showRank={true}
+            showHotBadge={true}
+            onPlayPreview={playPreview}
+          />
+
+          <div className="text-center mt-8">
+            <Button onClick={onComplete} size="lg" className="gap-2">
+              ✅ 활동 완료하기
+            </Button>
+            <p className="text-sm text-muted-foreground mt-3">
+              💡 Gemini AI + iTunes Search API로 맞춤 추천을 제공합니다
+            </p>
+          </div>
+        </>
+      )}
+
+      {/* 재생 중 정지 버튼 */}
+      {currentAudio && (
+        <div className="fixed bottom-6 right-6 z-50">
+          <Button
+            onClick={stopPreview}
+            className="px-6 py-3 bg-red-600 text-white rounded-full shadow-lg hover:bg-red-700 gap-2"
+          >
+            ⏹ 재생 정지
+          </Button>
         </div>
       )}
     </div>

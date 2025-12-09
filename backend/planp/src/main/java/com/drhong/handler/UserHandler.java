@@ -22,6 +22,7 @@ public class UserHandler extends BaseHandler {
         post("/signup", this::handleSignup);
         post("/login", this::handleLogin);
         post("/auth/google", this::handleGoogleLogin);
+        get("/logout", this::handleLogout);
     }
 
     @Override

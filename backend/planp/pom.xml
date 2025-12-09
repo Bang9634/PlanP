@@ -101,6 +101,13 @@
             <version>4.4.0</version>
         </dependency>
 
+        <!-- 제미나이 api -->
+        <dependency>
+            <groupId>com.google.genai</groupId>
+            <artifactId>google-genai</artifactId>
+            <version>1.0.0</version>
+        </dependency>
+
     </dependencies>
 
     <build>

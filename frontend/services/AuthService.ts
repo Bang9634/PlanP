@@ -80,6 +80,7 @@ export class AuthService {
     const token = this.getAccessToken();
     
     if (!token) {
+      console.warn('토큰이 존재하지 않습니다.');
       return false;
     }
     
@@ -89,7 +90,7 @@ export class AuthService {
       this.logout();
       return false;
     }
-    
+    console.debug('로그인 여부 확인 완료');
     return true;
   }
 

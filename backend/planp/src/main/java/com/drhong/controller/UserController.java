@@ -123,7 +123,7 @@ public class UserController {
             if (user.isEmpty()) {
                 return ApiResponse.fail("사용자가 존재하지 않습니다.");
             }
-   
+            
             return ApiResponse.success("로그아웃 성공");
         } catch (RuntimeException e) {
             return ApiResponse.fail(e.getMessage());
@@ -177,13 +177,16 @@ public class UserController {
                 googleUser.getEmail(), 
                 googleUser.getName()
             );
-            
+            String accessToken = jwtService.generateAccessToken(user);
+            String refreshToken = jwtService.generateRefreshToken(user.getUserId());
+
             // 3. 성공 응답 생성
             Map<String, Object> data = new HashMap<>();
             data.put("userId", user.getUserId());
             data.put("email", user.getEmail());
             data.put("name", user.getName());
-            data.put("loginType", "google");
+            data.put("accessToken", accessToken);
+            data.put("refreshToken", refreshToken);
             
             logger.info("Google OAuth 처리 성공: email={}", user.getEmail());
             return ApiResponse.success("인증 성공", data);

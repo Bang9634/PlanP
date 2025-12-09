@@ -16,11 +16,9 @@ interface SubCategorySelectorProps {
 
 const subCategories: Record<string, SubCategoryItem[]> = {
   music: [
-    { id: 'artist-new-songs', name: '가수 신곡 추천', description: '좋아하는 가수의 최신곡 발견하기', emoji: '🎤' },
+    { id: 'artist-new-songs', name: '가수 검색', description: '좋아하는 가수의 노래 발견하기', emoji: '🎤' },
     { id: 'genre-exploration', name: '새로운 장르 탐색', description: '평소 안 듣던 장르 도전해보기', emoji: '🎧' },
-    { id: 'playlist-creation', name: '플레이리스트 만들기', description: '테마별 나만의 플레이리스트 제작', emoji: '📝' },
-    { id: 'music-discovery', name: '음악 발견 여행', description: 'AI 추천으로 새로운 음악 찾기', emoji: '🔍' },
-    { id: 'live-music', name: '라이브 음악 감상', description: '공연이나 라이브 영상 찾아보기', emoji: '🎵' }
+    { id: 'music-discovery', name: '음악 발견 여행', description: 'AI 추천으로 새로운 음악 찾기', emoji: '🔍' }
   ],
   daily: [
     { id: 'cooking', name: '새로운 요리', description: '간단한 새 레시피 도전해보기', emoji: '👨‍🍳' },
