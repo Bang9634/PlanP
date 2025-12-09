@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
-import { ArrowLeft, Music, Play, Heart, Shuffle, Clock, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Music, Play, Heart, Shuffle, Clock, ExternalLink, Lock } from 'lucide-react';
 import MusicService, { Track } from '../services/MusicService';
+import { AuthService } from '../services/AuthService';
+import { apiService } from '../services/api';
 
 interface MusicDiscoveryActivityProps {
   onBack: () => void;
@@ -44,13 +46,41 @@ const moodQuestions = [
 ];
 
 export function MusicDiscoveryActivity({ onBack, onComplete }: MusicDiscoveryActivityProps) {
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [recommendations, setRecommendations] = useState<Track[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
 
+   useEffect(() => {
+    const checkAuth = () => {
+      const authenticated = AuthService.isAuthenticated();
+      setIsAuthenticated(authenticated);
+      setIsAuthChecking(false);
+      
+      if (!authenticated) {
+        console.warn('⚠️ 로그인이 필요한 기능입니다');
+      }
+    };
+
+    checkAuth();
+  }, []);
+  // ✅ 컴포넌트 언마운트 시 오디오 정리
+  useEffect(() => {
+    return () => {
+      if (currentAudio) {
+        currentAudio.pause();
+      }
+    };
+  }, [currentAudio]);
+
   const handleAnswer = (value: string, keywords: string) => {
+    if (!isAuthenticated) {
+      alert('🔒 로그인이 필요한 기능입니다');
+      return;
+    }
     const newAnswers = { 
       ...answers, 
       [moodQuestions[currentStep].id]: { value, keywords } 
@@ -65,6 +95,10 @@ export function MusicDiscoveryActivity({ onBack, onComplete }: MusicDiscoveryAct
   };
 
   const generateRecommendations = async (finalAnswers: Record<string, any>) => {
+    if (!isAuthenticated) {
+      alert('🔒 로그인이 필요한 기능입니다');
+      return;
+    }
     setIsGenerating(true);
     
     try {
@@ -160,6 +194,43 @@ export function MusicDiscoveryActivity({ onBack, onComplete }: MusicDiscoveryAct
     };
     return colors[genre] || 'bg-gray-100 text-gray-700';
   };
+  
+
+  if (isAuthChecking) {
+    return (
+      <div className="max-w-2xl mx-auto text-center py-12">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+        <p className="text-muted-foreground">인증 확인 중...</p>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <Button variant="ghost" onClick={onBack} className="gap-2 mb-4">
+          <ArrowLeft className="w-4 h-4" />
+          뒤로가기
+        </Button>
+        
+        <div className="flex flex-col items-center gap-6 mt-16 text-center">
+          <Lock className="w-20 h-20 text-muted-foreground" />
+          <div className="space-y-2">
+            <h2 className="text-2xl font-bold">🔒 로그인이 필요합니다</h2>
+            <p className="text-muted-foreground">
+              AI 음악 발견 여행은 로그인 후 이용하실 수 있습니다.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Gemini AI가 당신만을 위한 맞춤 노래를 추천해드려요! 🤖✨
+            </p>
+          </div>
+          <Button onClick={onBack} size="lg" className="mt-4">
+            돌아가기
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   if (isGenerating) {
     return (
@@ -178,13 +249,13 @@ export function MusicDiscoveryActivity({ onBack, onComplete }: MusicDiscoveryAct
               <div className="animate-spin w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full mx-auto"></div>
               <h3>🤖 Gemini AI가 당신만을 위한 음악을 찾고 있어요</h3>
               <p className="text-muted-foreground">
-                당신의 에너지, 상황, 취향을 분석하여 완벽한 플레이리스트를 만들고 있습니다...
+                당신의 에너지, 상황, 취향을 분석하여 완벽한 노래를 찾고 있습니다...
               </p>
               <div className="space-y-2 text-sm text-muted-foreground">
                 <p>🎯 컨텍스트 분석 중...</p>
                 <p>🤖 Gemini AI 추천 생성 중...</p>
                 <p>🎶 iTunes 곡 정보 수집 중...</p>
-                <p>✨ 맞춤 플레이리스트 완성 중...</p>
+                <p>✨ 노래 목록 완성 중...</p>
               </div>
             </div>
           </CardContent>

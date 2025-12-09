@@ -27,7 +27,7 @@ import {
     LoginRequest,
     LoginResponse
 } from "../services/api";
-import { AuthService } from '../services/AuthService';
+import { AuthService, UserInfo } from '../services/AuthService';
 
 
 // 루틴 인터페이스
@@ -173,7 +173,8 @@ export default function App() {
 
             if (result.success) {
                 // 로그인 성공
-                alert(` ${result.user?.name || id}님 환영합니다!`);
+                const userInfo = AuthService.getUserInfo();
+                alert(` ${userInfo.name}님 환영합니다!`);
 
                 setIsLoggedIn(true);
                 // 핵심 : 로그인 성공 후 실제 사용자 정보를 백엔드에서 가져오기
@@ -186,7 +187,7 @@ export default function App() {
                 // MyAccountPage는 user,name,email등 정보가 필요함.
                 // serCurnentUser에 userID 필드를 사용할 시 ID가 뜨고
                 // name 필드 사용하면 이름 할건데 이것도 선택사항
-                setCurrentUser(result.user?.userId || id); // 서버에서 받은 userId
+                setCurrentUser(userInfo.name); // 서버에서 받은 userId
                 setCurrentView("home");
             } else {
                 // 로그인 실패 메시지 반환
@@ -247,10 +248,11 @@ export default function App() {
 
             if (result.success) {
                 // 로그인 성공 처리 (일반 로그인과 동일)
-                alert(` ${result.user?.name || result.user?.userId}님 환영합니다!`);
+                const userInfo = AuthService.getUserInfo();
+                alert(` ${userInfo.name}님 환영합니다!`);
 
                 setIsLoggedIn(true);
-                setCurrentUser(result.user?.userId || '');
+                setCurrentUser(userInfo.name);
                 setCurrentView("home");
             } else {
                 // 백엔드 오류 메시지 처리
