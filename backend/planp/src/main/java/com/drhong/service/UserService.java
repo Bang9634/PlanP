@@ -3,12 +3,10 @@ package com.drhong.service;
 import java.util.List;
 import java.util.Optional;
 
-import javax.mail.*;
-import javax.mail.internet.*;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.drhong.config.EnvironmentConfig;
 import com.drhong.dto.SignupRequest;
 import com.drhong.model.User;
 import com.drhong.repository.UserRepository;
@@ -59,8 +57,8 @@ public class UserService {
 
     // 네이버 SMTP로 메일 발송 (javax.mail 필요)
     private void sendNaverMail(String to, String code) throws Exception {
-        final String username = "joochoo1815@naver.com"; // 본인 네이버 메일 주소
-        final String password = "M4QFEDCWWZKC"; // 발급받은 앱 비밀번호
+        final String username = EnvironmentConfig.getEnvValue("SMTP_NAVER_ADDRESS", "");
+        final String password = EnvironmentConfig.getEnvValue("SMTP_NAVER_PASSWORD", "");
 
         java.util.Properties props = new java.util.Properties();
         props.put("mail.smtp.host", "smtp.naver.com");
@@ -285,24 +283,6 @@ public class UserService {
             logger.warn("로그인 실패 - 비밀번호 불일치: userId={}", userId);
             throw new RuntimeException("비밀번호가 일치하지 않습니다.");
         }
-    }
-
-    
-    public Optional<User> logout(String userId) {
-        if (userId == null) {
-            logger.warn("로그아웃 시도 - null 파라미터: userId={}", userId);
-            throw new RuntimeException("null 파라미터 입력");
-        }
-
-        logger.debug("로그아웃 시도: userId={}", userId);
-
-        Optional<User> user = userRepository.findByUserId(userId);
-        if (user.isEmpty()) {
-            logger.debug("로그아웃 실패 - 사용자 없음: userId={}", userId);
-            throw new RuntimeException("사용자가 존재하지 않습니다.");
-        }
-        logger.info("로그아웃 성공: userId={}", userId);
-        return user;
     }
 
     /**

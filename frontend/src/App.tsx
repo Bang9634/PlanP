@@ -191,6 +191,7 @@ export default function App() {
             } else {
                 // 로그인 실패 메시지 반환
                 alert(` 로그인 실패: ${result.message}`);
+                setCurrentView("login");
             }
         } catch (error) {
             console.error("로그인 오류:", error);

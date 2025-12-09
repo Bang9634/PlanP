@@ -6,7 +6,6 @@ import com.drhong.controller.UserController;
 import com.drhong.dto.ApiResponse;
 import com.drhong.dto.GoogleLoginRequest;
 import com.drhong.dto.LoginRequest;
-import com.drhong.dto.LogoutRequest;
 import com.drhong.dto.SignupRequest;
 import com.sun.net.httpserver.HttpExchange;
 
@@ -21,9 +20,7 @@ public class UserHandler extends BaseHandler {
     protected void registerRoutes() {
         post("/signup", this::handleSignup);
         post("/login", this::handleLogin);
-        post("/logout", this::handleLogout);
         post("/auth/google", this::handleGoogleLogin);
-        get("/logout", this::handleLogout);
         
         // 사용자 정보 조회 라우트 (accessToken 기반)
         post("/get-info", this::handleGetUserInfoByToken);
@@ -138,23 +135,6 @@ public class UserHandler extends BaseHandler {
             sendErrorResponse(exchange, 500, "서버 오류가 발생했습니다.");        
         }
     }
-
-    private void handleLogout(HttpExchange exchange) throws IOException {
-        try {
-            String requestBody = readRequestBody(exchange);
-            LogoutRequest request = gson.fromJson(requestBody, LogoutRequest.class);
-            if (request == null) {
-                sendErrorResponse(exchange, 400, "잘못된 요청 형식");
-                return;
-            }
-            ApiResponse<?> response = userController.logout(request);
-            int statusCode = response.isSuccess() ? 200 : 400;
-            sendResponse(exchange, statusCode, response);
-        } catch (Exception e) {
-            logger.error("로그아웃 처리 중 오류", e);
-            sendErrorResponse(exchange, 500, "서버 오류가 발생했습니다.");
-        }
-    }
     
     private void handleGoogleLogin(HttpExchange exchange) throws IOException {
         logger.debug("Google OAuth 로그인 시도");
@@ -164,6 +144,7 @@ public class UserHandler extends BaseHandler {
 
             ApiResponse<?> response = userController.googleLogin(request);
 
+            logger.debug("구글 로그인 응답:"+response.toJson());
             if (response.isSuccess()) {
                 sendSuccessResponse(exchange, response);
             } else {

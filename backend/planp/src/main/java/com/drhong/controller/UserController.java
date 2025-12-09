@@ -12,7 +12,6 @@ import com.drhong.dto.ApiResponse;
 import com.drhong.dto.GoogleLoginRequest;
 import com.drhong.dto.GoogleUser;
 import com.drhong.dto.LoginRequest;
-import com.drhong.dto.LogoutRequest;
 import com.drhong.dto.SignupRequest;
 import com.drhong.model.User;
 import com.drhong.service.GoogleOAuthService;
@@ -92,12 +91,6 @@ public class UserController {
             }
             Optional<User> user = userService.signup(request);
 
-            // 향후 추가될 기능들:
-            // if (response.isSuccess()) {
-            //     emailService.sendWelcomeEmail(request.getEmail());
-            //     notificationService.notifyAdmins(request.getUserId());
-            // }
-
             String accessToken = jwtService.generateAccessToken(user.get());
             String refreshToken = jwtService.generateRefreshToken(user.get().getUserId());
 
@@ -154,20 +147,6 @@ public class UserController {
             return ApiResponse.fail(e.getMessage());
         }
     }
-
-    public ApiResponse<?> logout(LogoutRequest request) {
-        logger.debug("로그아웃 시작: userId={}", request.getUserId());
-        try {
-            Optional<User> user = userService.logout(request.getUserId());
-            if (user.isEmpty()) {
-                return ApiResponse.fail("사용자가 존재하지 않습니다.");
-            }
-            
-            return ApiResponse.success("로그아웃 성공");
-        } catch (RuntimeException e) {
-            return ApiResponse.fail(e.getMessage());
-        }
-    }
     
     /**
      * Google OAuth 로그인 요청을 처리하는 메서드
@@ -217,8 +196,6 @@ public class UserController {
                 googleUser.getName()
             );
 
-            // 3. 성공 응답 생성
-            
             // 3. JWT 토큰 생성
             String accessToken = jwtService.generateAccessToken(user);
             String refreshToken = jwtService.generateRefreshToken(user.getUserId());

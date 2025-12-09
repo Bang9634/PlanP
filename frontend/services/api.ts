@@ -244,7 +244,7 @@ export class ApiService {
       });
 
       // 401 에러 처리 (인증 실패)
-      if (response.status === 401) {
+      if (response.status === 401 && requiresAuth == true) {
         console.warn('🔒 401 Unauthorized - 로그아웃 처리');
 
         AuthService.logout();
@@ -373,34 +373,39 @@ export class ApiService {
      * @param data GoogleLoginRequest (accessToken 포함)
      * @returns GoogleLoginResponse (PlanP JWT 및 사용자 정보 포함)
      */
-    async googleLogin(data: GoogleLoginRequest): Promise<GoogleLoginResponse> {
+    async googleLogin(data: GoogleLoginRequest): Promise<LoginResponse> {
         console.log(" Google Access Token 기반 로그인 API 호출: /users/auth/google");
 
         // request 메서드를 사용하여 백엔드 엔드포인트 호출
-        const response = await this.request<GoogleLoginResponse>('/users/auth/google', {
+        const response = await this.request<LoginResponse>('/users/auth/google', {
             method: 'POST',
             body: JSON.stringify(data),
             // 인증이 필요한 요청이 아님
         }, false);
-        console.debug('성공 여부:', response.success, '토큰:', response.accessToken);
+        console.debug('성공 여부:', response.success);
 
         // 로그인 성공 시 응답으로 받은 PlanP JWT 저장 (기존 로그인 로직 재사용)
-        if (response.success && response.accessToken) {
-          console.debug('토큰 저장 시도');
-            AuthService.saveTokens({
-                accessToken: response.accessToken,
-                refreshToken: response.refreshToken,
-            });
+        if (response.success && response.data) {
 
-            // 사용자 정보 저장
-            if (response.user) {
-              console.debug('사용자 정보 저장 시도');
-                AuthService.saveUserInfo({
-                    userId: response.user.userId,
-                    name: response.user.name,
-                    email: response.user.email,
-                });
-            }
+          const { accessToken, refreshToken, userId, name, email } = response.data;
+          console.log('✅ 토큰 저장 시도:', {
+            access: accessToken?.substring(0, 20) + '...',
+            refresh: refreshToken?.substring(0, 20) + '...'
+          });
+          AuthService.saveTokens({
+            accessToken: accessToken,
+            refreshToken: refreshToken,
+          });
+
+          AuthService.saveUserInfo({
+            userId,
+            name,
+            email: email || '',
+          });
+           console.log('💾 localStorage 확인:', {
+            access: localStorage.getItem('planp_access_token'),
+            user: localStorage.getItem('planp_user_info')
+          });
         }
 
         return response;
@@ -408,14 +413,14 @@ export class ApiService {
 
     // 5) 로그아웃 API
   async logout(): Promise<{ success: boolean; message: string }> {
-    const response = await this.request('/users/logout', {
-      method: 'POST',
-    }, true);
+    // const response = await this.request('/users/logout', {
+    //   method: 'GET',
+    // }, true);
 
     // 로그아웃 성공 시 로컬 토큰 삭제
-    if (response.success) {
-      AuthService.logout();
-    }
+
+    AuthService.logout();
+    
 
     return response;
   }

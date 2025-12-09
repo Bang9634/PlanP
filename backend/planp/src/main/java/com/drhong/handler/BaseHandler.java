@@ -223,12 +223,8 @@ public abstract class BaseHandler implements HttpHandler {
      * @throws IOException 응답 전송 실패 시
      */
     protected void sendSuccessResponse(HttpExchange exchange, Object data) throws IOException {
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", true);
-        response.put("data", data);
-        response.put("timestamp", System.currentTimeMillis());
-        
-        sendResponse(exchange, 200, response);
+
+        sendResponse(exchange, 200, data);
     }
 
     /**

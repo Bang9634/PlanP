@@ -7,7 +7,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.drhong.util.GeminiUtil;
-import com.google.gson.Gson;
 
 /**
  * AI 기반 음악 추천 서비스
