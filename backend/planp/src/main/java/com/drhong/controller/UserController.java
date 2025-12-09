@@ -30,6 +30,35 @@ import com.drhong.service.UserService;
  * @since 2025-11-10
  */
 public class UserController {
+    // 이메일 인증 코드 전송
+    public ApiResponse<?> sendEmailCode(String email) {
+        try {
+            boolean sent = userService.sendEmailCode(email);
+            if (sent) {
+                return ApiResponse.success("인증 코드가 이메일로 전송되었습니다.");
+            } else {
+                return ApiResponse.fail("이메일 전송에 실패했습니다. 이미 인증된 이메일이거나 잘못된 요청입니다.");
+            }
+        } catch (Exception e) {
+            logger.warn("이메일 인증 코드 전송 실패: {}", e.getMessage());
+            return ApiResponse.fail("이메일 인증 코드 전송 중 오류가 발생했습니다.");
+        }
+    }
+
+    // 이메일 인증 코드 검증
+    public ApiResponse<?> verifyEmailCode(String email, String code) {
+        try {
+            boolean verified = userService.verifyEmailCode(email, code);
+            if (verified) {
+                return ApiResponse.success("이메일 인증이 완료되었습니다.");
+            } else {
+                return ApiResponse.fail("인증 코드가 올바르지 않거나 만료되었습니다.");
+            }
+        } catch (Exception e) {
+            logger.warn("이메일 인증 코드 검증 실패: {}", e.getMessage());
+            return ApiResponse.fail("이메일 인증 코드 검증 중 오류가 발생했습니다.");
+        }
+    }
 
     /** SLF4J Logger 인스턴스 - 요청 처리 로그를 기록 */
     private static final Logger logger = LoggerFactory.getLogger(UserController.class);
@@ -56,6 +85,11 @@ public class UserController {
     public ApiResponse<?> signup(SignupRequest request) {
         logger.debug("회원가입 시작");
         try {
+            // 이메일 인증 여부 체크
+            if (!userService.isEmailVerified(request.getEmail())) {
+                logger.warn("이메일 인증 미완료: {}", request.getEmail());
+                return ApiResponse.fail("이메일 인증이 필요합니다");
+            }
             Optional<User> user = userService.signup(request);
 
             // 향후 추가될 기능들:
@@ -69,6 +103,9 @@ public class UserController {
 
             Map<String, Object> data = new HashMap<>();
             data.put("userId", user.get().getUserId());
+            data.put("name", user.get().getName());
+            data.put("email", user.get().getEmail());
+            data.put("isGoogleAccount", user.get().isGoogleAccount());
             data.put("accessToken", accessToken);
             data.put("refreshToken", refreshToken);
 
@@ -107,6 +144,8 @@ public class UserController {
             Map<String, Object> data = new HashMap<>();
             data.put("userId", user.get().getUserId());
             data.put("name", user.get().getName());
+            data.put("email", user.get().getEmail());
+            data.put("isGoogleAccount", user.get().isGoogleAccount());
             data.put("accessToken", accessToken);
             data.put("refreshToken", refreshToken);
             
@@ -177,10 +216,14 @@ public class UserController {
                 googleUser.getEmail(), 
                 googleUser.getName()
             );
-            String accessToken = jwtService.generateAccessToken(user);
-            String refreshToken = jwtService.generateRefreshToken(user.getUserId());
 
             // 3. 성공 응답 생성
+            
+            // 3. JWT 토큰 생성
+            String accessToken = jwtService.generateAccessToken(user);
+            String refreshToken = jwtService.generateRefreshToken(user.getUserId());
+            
+            // 4. 성공 응답 생성
             Map<String, Object> data = new HashMap<>();
             data.put("userId", user.getUserId());
             data.put("email", user.getEmail());
@@ -203,6 +246,73 @@ public class UserController {
         } catch (Exception e) {
             logger.error("Google OAuth 처리 중 예상치 못한 오류", e);
             return ApiResponse.fail("로그인 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+        }
+    }
+    
+    /**
+     * 리프레시 토큰을 사용하여 새로운 액세스 토큰을 발급받는 API
+     * 
+     * @param refreshToken 리프레시 토큰
+     * @return 새로운 액세스 토큰 또는 오류 메시지
+     */
+    public ApiResponse<?> refreshToken(String refreshToken) {
+        logger.debug("토큰 갱신 요청");
+        
+        try {
+            if (refreshToken == null || refreshToken.trim().isEmpty()) {
+                return ApiResponse.fail("리프레시 토큰이 필요합니다");
+            }
+            
+            // 리프레시 토큰 검증
+            Optional<User> user = jwtService.validateToken(refreshToken);
+            
+            if (user.isEmpty()) {
+                logger.warn("유효하지 않은 리프레시 토큰");
+                return ApiResponse.fail("유효하지 않은 리프레시 토큰입니다");
+            }
+            
+            // 새로운 액세스 토큰과 리프레시 토큰 생성
+            String newAccessToken = jwtService.generateAccessToken(user.get());
+            String newRefreshToken = jwtService.generateRefreshToken(user.get().getUserId());
+            
+            Map<String, Object> data = new HashMap<>();
+            data.put("accessToken", newAccessToken);
+            data.put("refreshToken", newRefreshToken);
+            
+            logger.info("토큰 갱신 성공: userId={}", user.get().getUserId());
+            return ApiResponse.success("토큰 갱신 성공", data);
+            
+        } catch (Exception e) {
+            logger.error("토큰 갱신 중 오류", e);
+            return ApiResponse.fail("토큰 갱신에 실패했습니다");
+        }
+    }
+    
+    /**
+     * 사용자 정보 조회 API (엔드포인트: /api/users/get-info)
+     * <p>
+     * accessToken 기반으로 현재 로그인한 사용자 정보를 반환한다.
+     * </p>
+     * @param accessToken Authorization 헤더에서 추출
+     * @return 사용자 정보 API 응답
+     */
+    public ApiResponse<?> getUserInfoByToken(String accessToken) {
+        logger.debug("사용자 정보 조회 API 호출: accessToken={}", accessToken != null ? accessToken.substring(0, 10) + "..." : null);
+        try {
+            if (accessToken == null || accessToken.trim().isEmpty()) {
+                return ApiResponse.fail("액세스 토큰이 필요합니다");
+            }
+            // 토큰에서 사용자 정보 추출
+            java.util.Optional<com.drhong.model.User> user = jwtService.validateToken(accessToken);
+            if (user.isEmpty()) {
+                return ApiResponse.fail("유효하지 않은 토큰입니다");
+            }
+            java.util.Map<String, Object> userInfo = userService.getUserPublicInfo(user.get().getUserId());
+            logger.info("사용자 정보 조회 성공: userId={}", user.get().getUserId());
+            return ApiResponse.success("사용자 정보 조회 성공", userInfo);
+        } catch (Exception e) {
+            logger.error("사용자 정보 조회 중 오류", e);
+            return ApiResponse.fail("사용자 정보 조회 중 오류가 발생했습니다");
         }
     }
 }

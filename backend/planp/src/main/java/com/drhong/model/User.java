@@ -81,6 +81,19 @@ public class User {
     public void setActive(boolean active) { this.active = active; }
 
     /**
+     * Google 계정 연동 여부를 확인하는 메서드
+     * <p>
+     * Google ID가 설정되어 있으면 Google 계정으로 간주한다.
+     * 프론트엔드에서 로그인 타입을 구분할 때 사용된다.
+     * </p>
+     * 
+     * @return Google 계정이면 true, 로컬 계정이면 false
+     */
+    public boolean isGoogleAccount() {
+        return googleId != null && !googleId.trim().isEmpty();
+    }
+
+    /**
      * User 객체의 문자열 표현을 반환한다.
      * <p>
      * 사용자의 ID, 이름, 이메일 활성화 상태를 포함한 문자열을 생성한다.

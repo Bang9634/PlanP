@@ -65,7 +65,9 @@ public class AuthenticationFilter extends Filter {
         "GET:/health",
         "POST:/api/users/login",
         "POST:/api/users/signup",
-        "POST:/api/users/auth/google"
+        "POST:/api/users/auth/google",
+        "POST:/api/users/send-email-code",
+        "POST:/api/users/verify-email-code"
     );
 
     private final JwtService jwtService;

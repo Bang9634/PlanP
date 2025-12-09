@@ -3,6 +3,9 @@ package com.drhong.service;
 import java.util.List;
 import java.util.Optional;
 
+import javax.mail.*;
+import javax.mail.internet.*;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,6 +31,82 @@ import com.drhong.validator.SignupValidator;
  * @see com.drhong.validator.SignupValidator
  */
 public class UserService {
+
+    // 이메일별 인증 코드 저장 (실제 서비스에서는 DB/Redis 등 사용 권장)
+    private final java.util.Map<String, String> emailCodeMap = new java.util.concurrent.ConcurrentHashMap<>();
+    // 인증 완료된 이메일 저장
+    private final java.util.Set<String> verifiedEmails = java.util.Collections.newSetFromMap(new java.util.concurrent.ConcurrentHashMap<>());
+
+    /**
+     * 이메일로 인증 코드 전송 (네이버 SMTP 실제 발송)
+     * @param email
+     * @return 성공 여부
+     */
+    public boolean sendEmailCode(String email) {
+        if (email == null || email.trim().isEmpty()) return false;
+        if (verifiedEmails.contains(email)) return false;
+        String code = String.format("%06d", (int)(Math.random() * 1000000));
+        emailCodeMap.put(email, code);
+        try {
+            sendNaverMail(email, code);
+            logger.info("[이메일 인증] {} → 코드: {} (네이버 SMTP 발송)", email, code);
+            return true;
+        } catch (Exception e) {
+            logger.error("이메일 인증코드 발송 실패: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    // 네이버 SMTP로 메일 발송 (javax.mail 필요)
+    private void sendNaverMail(String to, String code) throws Exception {
+        final String username = "joochoo1815@naver.com"; // 본인 네이버 메일 주소
+        final String password = "M4QFEDCWWZKC"; // 발급받은 앱 비밀번호
+
+        java.util.Properties props = new java.util.Properties();
+        props.put("mail.smtp.host", "smtp.naver.com");
+        props.put("mail.smtp.port", "587");
+        props.put("mail.smtp.auth", "true");
+        props.put("mail.smtp.starttls.enable", "true");
+        props.put("mail.smtp.ssl.protocols", "TLSv1.2");
+
+        javax.mail.Session session = javax.mail.Session.getInstance(props, new javax.mail.Authenticator() {
+            protected javax.mail.PasswordAuthentication getPasswordAuthentication() {
+                return new javax.mail.PasswordAuthentication(username, password);
+            }
+        });
+
+        javax.mail.Message message = new javax.mail.internet.MimeMessage(session);
+        message.setFrom(new javax.mail.internet.InternetAddress(username));
+        message.setRecipients(javax.mail.Message.RecipientType.TO, javax.mail.internet.InternetAddress.parse(to));
+        message.setSubject("플랜P 이메일 인증 코드");
+        message.setText("인증 코드: " + code);
+
+        javax.mail.Transport.send(message);
+    }
+
+    /**
+     * 이메일 인증 코드 검증
+     * @param email
+     * @param code
+     * @return 성공 여부
+     */
+    public boolean verifyEmailCode(String email, String code) {
+        if (email == null || code == null) return false;
+        String realCode = emailCodeMap.get(email);
+        if (realCode != null && realCode.equals(code)) {
+            verifiedEmails.add(email);
+            emailCodeMap.remove(email);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * 해당 이메일이 인증되었는지 확인
+     */
+    public boolean isEmailVerified(String email) {
+        return verifiedEmails.contains(email);
+    }
 
     /** SLF4J 로거 인스턴스 - 비즈니스 로직 처리 과정 로깅 */
     private static final Logger logger = LoggerFactory.getLogger(UserService.class);
@@ -328,6 +407,57 @@ public class UserService {
         }
         
         return user;
+    }
+
+    /**
+     * 사용자 ID로 사용자 정보를 조회하는 메서드
+     * <p>
+     * 기존의 getUserByUserId 메서드를 활용하여 중복을 방지한다.
+     * API 응답용 사용자 정보 조회에 사용된다.
+     * </p>
+     * 
+     * @param userId 조회할 사용자 ID
+     * @return 사용자 정보 객체, 존재하지 않으면 Optional.empty()
+     * 
+     * @throws IllegalArgumentException userId가 null이거나 빈 문자열인 경우
+     * 
+     * @see #getUserByUserId(String)
+     */
+    public Optional<User> getUserInfo(String userId) {
+        // 기존 getUserByUserId 메서드를 활용하여 중복 제거
+        return getUserByUserId(userId);
+    }
+
+    /**
+     * 사용자 ID로 공개 가능한 사용자 정보를 조회하는 메서드
+     * <p>
+     * 보안상 안전한 사용자 정보만을 Map 형태로 반환한다.
+     * 비밀번호, Google ID 등 민감한 정보는 제외하고 반환한다.
+     * API 응답에 직접 사용할 수 있는 형태로 변환한다.
+     * </p>
+     * 
+     * @param userId 조회할 사용자 ID
+     * @return 공개 가능한 사용자 정보 Map
+     * 
+     * @throws RuntimeException 사용자가 존재하지 않는 경우
+     */
+    public java.util.Map<String, Object> getUserPublicInfo(String userId) {
+        Optional<User> userOpt = getUserInfo(userId);
+        if (userOpt.isEmpty()) {
+            throw new RuntimeException("사용자를 찾을 수 없습니다");
+        }
+        User user = userOpt.get();
+        // 비밀번호 필드 비우기 (보안)
+        user.setPassword("");
+        // 공개 가능한 정보만 선별하여 반환
+        java.util.Map<String, Object> publicInfo = new java.util.HashMap<>();
+        publicInfo.put("userId", user.getUserId());
+        publicInfo.put("name", user.getName());
+        publicInfo.put("email", user.getEmail());
+        publicInfo.put("isGoogleAccount", user.isGoogleAccount());
+        publicInfo.put("createdAt", user.getCreatedAt() != null ? user.getCreatedAt().toString() : null);
+        publicInfo.put("active", user.isActive());
+        return publicInfo;
     }
 
     /**

@@ -15,6 +15,13 @@
     </properties>
 
     <dependencies>
+                <!-- 이메일 인증용 JavaMail 라이브러리 -->
+        <dependency>
+            <groupId>javax.mail</groupId>
+            <artifactId>mail</artifactId>
+            <version>1.4.7</version>
+        </dependency>
+        
         <!-- mysql 의존성 추가 -->
         <dependency>
             <groupId>mysql</groupId>
@@ -60,18 +67,25 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- Mockito (Mock 객체 생성용) -->
+        <!-- Mockito (Mock 객체 생성용) 최신 버전 -->
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
             <version>5.5.0</version>
             <scope>test</scope>
         </dependency>
-
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-junit-jupiter</artifactId>
             <version>5.5.0</version>
+            <scope>test</scope>
+        </dependency>
+        
+        <!-- Byte Buddy 최신 버전 -->
+        <dependency>
+            <groupId>net.bytebuddy</groupId>
+            <artifactId>byte-buddy</artifactId>
+            <version>1.14.10</version>
             <scope>test</scope>
         </dependency>
 
