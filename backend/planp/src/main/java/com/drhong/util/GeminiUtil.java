@@ -13,6 +13,12 @@ import org.slf4j.LoggerFactory;
 import com.drhong.config.EnvironmentConfig;
 import com.drhong.service.UserService;
 
+/**
+ * Gemini API 유틸리티 클래스
+ * 
+ * @author bang9634
+ * @since 2025-12-08
+ */
 public class GeminiUtil {
     private static final Logger logger = LoggerFactory.getLogger(UserService.class);
     private static final String MODEL_NAME = "gemini-2.5-flash";

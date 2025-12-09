@@ -209,41 +209,6 @@ public class DatabaseInitializer {
      * 이미 존재하면 아무 작업도 하지 않는다 (멱등성).
      * </p>
      * 
-     * <h3>생성되는 테이블</h3>
-     * 
-     * <h3>1. users 테이블</h3>
-     * <pre>
-     * 컬럼:
-     *   - user_id: VARCHAR(50) PRIMARY KEY
-     *     사용자 고유 ID (로그인 ID)
-     *   
-     *   - username: VARCHAR(100) NOT NULL
-     *     사용자 이름 (표시명)
-     *   
-     *   - password_hash: VARCHAR(255) NOT NULL
-     *     BCrypt 해시된 비밀번호
-     *   
-     *   - email: VARCHAR(255) UNIQUE
-     *     이메일 주소 (중복 불가)
-     *   
-     *   - is_active: BOOLEAN DEFAULT FALSE
-     *     계정 활성화 여부
-     *   
-     *   - created_at: TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-     *     계정 생성 시각 (자동 입력)
-     * 
-     * 인덱스:
-     *   - PRIMARY KEY (user_id)
-     *   - UNIQUE KEY (email)
-     *   - INDEX idx_email (email) - 이메일 조회 최적화
-     *   - INDEX idx_username (username) - 이름 검색 최적화
-     * 
-     * 설정:
-     *   - Engine: InnoDB (트랜잭션, 외래키 지원)
-     *   - Charset: utf8mb4 (이모지 지원)
-     *   - Collation: utf8mb4_unicode_ci (대소문자 무시)
-     * </pre>
-     * 
      * @throws SQLException 다음과 같은 경우 발생:
      *         <ul>
      *         <li>데이터베이스에 연결할 수 없음</li>
@@ -278,6 +243,26 @@ public class DatabaseInitializer {
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             """);
             logger.info("  ✓ users 테이블 준비 완료");
+            
+
+            // 2. ai_usage 테이블 (AI 사용량 추적)
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS ai_usage (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    user_id VARCHAR(50) NOT NULL,
+                    usage_date DATE NOT NULL,
+                    usage_count INT DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    UNIQUE KEY unique_user_date (user_id, usage_date),
+                    INDEX idx_user_date (user_id, usage_date),
+                    CONSTRAINT fk_ai_usage_user 
+                        FOREIGN KEY (user_id) 
+                        REFERENCES users(user_id) 
+                        ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            """);
+            logger.info("  ✓ ai_usage 테이블 준비 완료");
             
         }
     }

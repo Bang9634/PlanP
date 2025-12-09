@@ -477,6 +477,10 @@ export class ApiService {
         return response.data.songs;
       }
 
+      if (!response.success) {
+        alert(response.message || 'AI 음악 추천에 실패했습니다.');
+      }
+
       console.warn('⚠️ AI 추천 응답 형식 오류:', response);
       return [];
       
@@ -520,6 +524,10 @@ export class ApiService {
       if (response.success && response.data) {
         console.log(`✅ AI 음악 발견 성공: ${response.data.songs.length}곡`);
         return response.data.songs;
+      }
+
+      if (!response.success) {
+        alert(response.message || 'AI 음악 추천에 실패했습니다.');
       }
 
       console.warn('⚠️ AI 음악 발견 응답 형식 오류:', response);

@@ -42,6 +42,11 @@ public class MusicHandler extends BaseHandler {
         logger.debug("음악 추천 요청");
 
         try {
+            String userId = (String) exchange.getAttribute("userId");
+            if (userId == null) {
+                sendErrorResponse(exchange, 401, "로그인이 필요합니다");
+                return;
+            }
             // 쿼리 파라미터 파싱
             String query = exchange.getRequestURI().getQuery();
             Map<String, String> params = parseQueryParams(query);
@@ -50,7 +55,7 @@ public class MusicHandler extends BaseHandler {
             int count = Integer.parseInt(params.getOrDefault("count", "3"));
 
             // 컨트롤러 호출
-            ApiResponse<?> response = musicController.recommendByGenre(genre, count);
+            ApiResponse<?> response = musicController.recommendByGenre(userId, genre, count);
 
             // 응답 전송
             int statusCode = response.isSuccess() ? 200 : 400;
@@ -72,6 +77,11 @@ public class MusicHandler extends BaseHandler {
         logger.debug("음악 분위기별 추천 요청");
 
         try {
+            String userId = (String) exchange.getAttribute("userId");
+            if (userId == null) {
+                sendErrorResponse(exchange, 401, "로그인이 필요합니다");
+                return;
+            }
             // 쿼리 파라미터 파싱
             String query = exchange.getRequestURI().getQuery();
             Map<String, String> params = parseQueryParams(query);
@@ -82,7 +92,7 @@ public class MusicHandler extends BaseHandler {
             int count = Integer.parseInt(params.getOrDefault("count", "3"));
 
             // 컨트롤러 호출
-            ApiResponse<?> response = musicController.discoverSongs(energy, activity, preference, count);
+            ApiResponse<?> response = musicController.discoverSongs(userId,energy, activity, preference, count);
             // 응답 전송
             int statusCode = response.isSuccess() ? 200 : 400;
             sendResponse(exchange, statusCode, response);
