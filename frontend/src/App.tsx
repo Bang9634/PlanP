@@ -25,7 +25,8 @@ import {
     apiService,
     SignupRequest,
     LoginRequest,
-    LoginResponse
+    LoginResponse,
+    MyAccountResponse
 } from "../services/api";
 import { AuthService, UserInfo } from '../services/AuthService';
 
@@ -153,8 +154,8 @@ export default function App() {
 
       if (userInfo) {
         setIsLoggedIn(true);
-        setCurrentUser(userInfo.userId);
-        console.log('저장된 세션으로 자동 로그인:', userInfo.userId);
+        setCurrentUser(userInfo.name);
+        console.log('저장된 세션으로 자동 로그인:', userInfo.name);
       }
     }
   }, []);
@@ -278,10 +279,11 @@ export default function App() {
       setSelectedCategory(null);
     }
   };
-    // 뒤로가기 (메인 홈 화면)
-    const goBackToHome = () => {
-        setCurrentView("home");
-    };
+
+  // 뒤로가기 (메인 홈 화면)
+  const goBackToHome = () => {
+      setCurrentView("home");
+  };
 
   // 로그인 화면
   if (currentView === 'login') {
@@ -314,6 +316,7 @@ export default function App() {
         completedPlans={completedPlans}
         routines={routines}
         onBackToHome={goBackToHome}
+        onLogout={handleLogout}
       />
     );
   }

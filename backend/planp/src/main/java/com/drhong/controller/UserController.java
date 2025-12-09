@@ -292,4 +292,75 @@ public class UserController {
             return ApiResponse.fail("사용자 정보 조회 중 오류가 발생했습니다");
         }
     }
+
+    /**
+ * 회원 탈퇴 API
+ * <p>
+ * JWT 토큰으로 사용자 인증 후 계정을 비활성화한다.
+ * 일반 계정의 경우 비밀번호 재확인이 필요하다.
+ * </p>
+ * 
+ * @param accessToken JWT 액세스 토큰
+ * @param password 비밀번호 (일반 계정만, Google 계정은 null 가능)
+ * @return 탈퇴 처리 결과
+ */
+public ApiResponse<?> deleteAccount(String accessToken, String password) {
+    logger.info("회원 탈퇴 요청");
+    
+    try {
+        // 1. JWT 토큰 검증 및 사용자 정보 추출
+        if (accessToken == null || accessToken.trim().isEmpty()) {
+            return ApiResponse.fail("액세스 토큰이 필요합니다");
+        }
+        
+        Optional<User> userOpt = jwtService.validateToken(accessToken);
+        
+        if (userOpt.isEmpty()) {
+            logger.warn("유효하지 않은 토큰으로 회원 탈퇴 시도");
+            return ApiResponse.fail("유효하지 않은 토큰입니다");
+        }
+        
+        User user = userService.getUserByUserId(userOpt.get().getUserId()).get();
+        logger.info("회원 탈퇴 진행: userId={}, isGoogleAccount={}", 
+            user.getUserId(), user.isGoogleAccount());
+        
+        // 2. 일반 계정인 경우 비밀번호 확인
+        if (!user.isGoogleAccount()) {
+            if (password == null || password.trim().isEmpty()) {
+                logger.warn("일반 계정 탈퇴 시 비밀번호 미입력: userId={}", user.getUserId());
+                return ApiResponse.fail("비밀번호 확인이 필요합니다");
+            }
+            
+            // 비밀번호 검증
+            Optional<User> userCheck = userService.login(user.getUserId(), password);
+            if (userCheck.isEmpty()) {
+                logger.warn("회원 탈퇴 비밀번호 불일치: userId={}", user.getUserId());
+                return ApiResponse.fail("비밀번호가 일치하지 않습니다");
+            }
+        }
+        
+        // 3. UserService에 탈퇴 처리 위임
+        boolean deleted = userService.deleteAccount(user.getUserId());
+        
+        if (deleted) {
+            logger.info("회원 탈퇴 성공: userId={}", user.getUserId());
+            
+            Map<String, Object> data = new HashMap<>();
+            data.put("userId", user.getUserId());
+            data.put("deletedAt", java.time.LocalDateTime.now().toString());
+            
+            return ApiResponse.success("회원 탈퇴가 완료되었습니다", data);
+        } else {
+            logger.warn("회원 탈퇴 실패: userId={}", user.getUserId());
+            return ApiResponse.fail("회원 탈퇴 처리에 실패했습니다");
+        }
+        
+    } catch (RuntimeException e) {
+        logger.error("회원 탈퇴 실패:", e.getMessage());
+        return ApiResponse.fail(e.getMessage());
+    } catch (Exception e) {
+        logger.error("회원 탈퇴 중 오류", e);
+        return ApiResponse.fail("회원 탈퇴 처리 중 오류가 발생했습니다");
+    }
+}
 }

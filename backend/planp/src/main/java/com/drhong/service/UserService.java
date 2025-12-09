@@ -1,5 +1,8 @@
 package com.drhong.service;
 
+import javax.mail.*;
+import javax.mail.internet.*;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -435,8 +438,7 @@ public class UserService {
         publicInfo.put("name", user.getName());
         publicInfo.put("email", user.getEmail());
         publicInfo.put("isGoogleAccount", user.isGoogleAccount());
-        publicInfo.put("createdAt", user.getCreatedAt() != null ? user.getCreatedAt().toString() : null);
-        publicInfo.put("active", user.isActive());
+        publicInfo.put("googleId", user.getGoogleId());
         return publicInfo;
     }
 
@@ -571,4 +573,48 @@ public class UserService {
         
         return candidateId;
     }
+
+    /**
+ * 회원 탈퇴 처리 메서드
+ * <p>
+ * 사용자 계정을 비활성화한다 (소프트 삭제).
+ * 실제 데이터는 삭제하지 않고 is_active 플래그만 변경한다.
+ * </p>
+ * 
+ * @param userId 탈퇴할 사용자 ID
+ * @return 성공 시 true, 실패 시 false
+ */
+public boolean deleteAccount(String userId) {
+    if (userId == null || userId.trim().isEmpty()) {
+        logger.warn("잘못된 userId로 탈퇴 시도: userId={}", userId);
+        throw new IllegalArgumentException("사용자 ID는 필수입니다");
+    }
+    
+    logger.info("회원 탈퇴 처리 시작: userId={}", userId);
+    
+    try {
+        // 사용자 존재 확인
+        Optional<User> userOpt = userRepository.findByUserId(userId);
+        
+        if (userOpt.isEmpty()) {
+            logger.warn("존재하지 않는 사용자 탈퇴 시도: userId={}", userId);
+            throw new RuntimeException("사용자를 찾을 수 없습니다");
+        }
+        
+       
+        boolean deactivated = userRepository.deleteByUserId(userId);
+        
+        if (deactivated) {
+            logger.info("회원 탈퇴 완료: userId={}", userId);
+            return true;
+        } else {
+            logger.warn("회원 탈퇴 실패: userId={}", userId);
+            return false;
+        }
+        
+    } catch (Exception e) {
+        logger.error("회원 탈퇴 처리 중 오류: userId={}", userId, e);
+        throw new RuntimeException("회원 탈퇴 처리 중 오류가 발생했습니다");
+    }
+}
 }

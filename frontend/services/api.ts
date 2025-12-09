@@ -120,12 +120,37 @@ export interface LoginResponse {
     refreshToken?: string;
   };
 }
+// 로그아웃 응답
+export interface DeleteAccountResponse {
+  success: boolean;
+  message: string;
+  timestamp?: number;
+  data?: { // data 객체 추가
+    userId: string;
+    deletedAt: string;
+  };
+}
 
 export interface GoogleLoginRequest {
     accessToken: string; // Google OAuth Access Token
 }
 
 export interface GoogleLoginResponse extends LoginResponse {}
+
+// 계정 정보
+export interface MyAccountResponse {
+  success: boolean;
+  message: string;
+  timestamp?: number;
+  data?: { // data 객체 추가
+    userId: string;
+    name: string;
+    email: string;
+    googleId?: string;
+    isGoogleAccount: boolean;
+  };
+}
+
 
 // 6) 내정보 (UserProfile)
 // /users/me API용
@@ -425,29 +450,29 @@ export class ApiService {
     return response;
   }
     // 6) 내 정보 가져오는 API
-    async getMyProfile(): Promise<UserProfile> {
+    async getMyAccount(): Promise<UserProfile> {
         return this.request<UserProfile>("/users/me", {
             method: "GET",
-        });
+        }, true);
     }
 
     // 7) 내 활동기록 API
     async getMyActivityHistory(): Promise<ActivityRecord[]> {
         return this.request<ActivityRecord[]>("/users/me/activity-history", {
             method: "GET",
-        });
+        }, true);
     }
     // 8) 통계 API
     async getMyStatistics(): Promise<ActivityStatistics> {
         return this.request<ActivityStatistics>("/users/me/statistics", {
             method: "GET",
-        });
+        }, true);
     }
     // 9) 뱃지 API(진짜 필요하냐고?)
     async getMyAchievements(): Promise<Achievement[]> {
         return this.request<Achievement[]>("/users/me/achievements", {
             method: "GET",
-        });
+        }, true);
     }
 
     // 10) 캘린더 API
@@ -456,6 +481,20 @@ export class ApiService {
         return this.request<CalendarDayActivity[]>(`/users/me/calendar${query}`, {
             method: "GET",
         });
+    }
+
+    /**
+     * 회원 탈퇴 API
+     * @param password 비밀번호 (일반 계정만 필요, Google 계정은 선택)
+     * @returns 탈퇴 결과
+     */
+    async deleteMyAccount(password?: string): Promise<DeleteAccountResponse> {
+        const body = password ? { password } : {};
+        
+        return this.request<DeleteAccountResponse>("/users/me", {
+            method: "DELETE",
+            body: JSON.stringify(body),
+        }, true); // requiresAuth = true
     }
 
     /**
