@@ -21,11 +21,15 @@ import com.google.gson.Gson;
  */
 public class MusicRecommendationService {
     private static final Logger logger = LoggerFactory.getLogger(MusicRecommendationService.class);
-    
-    private final Gson gson;
+    private static final String PROMPT_HEADER = 
+            "You are a music recommendation expert with deep knowledge of diverse artists." 
+            + "Focus on variety and include lesser-known artists alongside popular ones. "
+            + "Avoid recommending only chart-toppers or the same famous artists repeatedly. ";
+    private static final String PROMPT_FORMAT = 
+            "Return ONLY the song titles, one per line, without numbering or extra text. "
+            + "Format: 'Artist - Song Title'";
 
     public MusicRecommendationService() {
-        this.gson = new Gson();
         logger.info("MusicRecommendationService 초기화 완료");
     }
 
@@ -39,10 +43,14 @@ public class MusicRecommendationService {
     public List<String> recommendSongsByGenre(String genre, int count) {
         logger.info("🎵 AI 음악 추천 시작: genre={}, count={}", genre, count);
         
-
         try {
             // OpenAI API 호출
-            String prompt = buildPromptRecommendByGenre(genre, count);
+            String prompt = String.format(
+            PROMPT_HEADER +
+            "Recommend %d popular %s songs. " +
+            PROMPT_FORMAT,
+            count, genre
+        );
             String response = GeminiUtil.askGemini(prompt);
             
             // 응답 파싱
@@ -57,17 +65,31 @@ public class MusicRecommendationService {
         }
     }
 
-    /**
-     * 프롬프트 생성
-     */
-    private String buildPromptRecommendByGenre(String genre, int count) {
-        return String.format(
-            "You are a music recommendation expert. " +
-            "Recommend %d popular %s songs. " +
-            "Return ONLY the song titles, one per line, without numbering or extra text. " +
-            "Format: 'Artist - Song Title'",
-            count, genre
-        );
+    public List<String> discoverSongs(String energy, String activity, String preference, int count) {
+        logger.info("🎵 AI 음악 추천 시작: energy={}, activity={}, preference={}, count={}", energy, activity, preference, count);
+        
+        try {
+            String prompt = String.format(
+                PROMPT_HEADER +
+                "Recommend %d songs that match the following criteria:\n" +
+                "- Energy level: %s\n" +
+                "- Listening situation: %s\n" +
+                "- Preferred genre: %s\n\n" +
+                PROMPT_FORMAT,
+                count, energy, activity, preference
+            );
+            String response = GeminiUtil.askGemini(prompt);
+            
+            // 응답 파싱
+            List<String> songs = parseAIResponse(response);
+            
+            logger.info("AI 추천 완료: {} 곡", songs.size());
+            return songs;
+            
+        } catch (Exception e) {
+            logger.error("AI 추천 실패, 목업 데이터 반환", e);
+            return getMockRecommendations("POP", count); // 무드 기반 추천은 POP 장르로 대체
+        }
     }
 
     /**

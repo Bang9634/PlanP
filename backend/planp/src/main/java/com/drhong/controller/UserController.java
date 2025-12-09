@@ -123,7 +123,7 @@ public class UserController {
             if (user.isEmpty()) {
                 return ApiResponse.fail("사용자가 존재하지 않습니다.");
             }
-   
+            
             return ApiResponse.success("로그아웃 성공");
         } catch (RuntimeException e) {
             return ApiResponse.fail(e.getMessage());

@@ -486,6 +486,51 @@ export class ApiService {
     }
   }
 
+  /**
+   * AI 기반 음악 발견 (컨텍스트 분석)
+   * 
+   * @param energy 에너지 레벨 (high, medium, low)
+   * @param activity 활동 상황 (work, exercise, relax, commute)
+   * @param preference 선호 장르 (pop, indie, jazz, classical, electronic)
+   * @param count 추천받을 곡 수
+   */
+  async discoverMusic(
+    energy: string, 
+    activity: string, 
+    preference: string, 
+    count: number = 10
+  ): Promise<string[]> {
+    try {
+      const response = await this.request<{
+        success: boolean;
+        message: string;
+        data: {
+          energy: string;
+          activity: string;
+          preference: string;
+          count: number;
+          songs: string[];
+        };
+      }>(
+        `/music/discover?energy=${encodeURIComponent(energy)}&activity=${encodeURIComponent(activity)}&preference=${encodeURIComponent(preference)}&count=${count}`,
+        {},
+        true
+      );
+
+      if (response.success && response.data) {
+        console.log(`✅ AI 음악 발견 성공: ${response.data.songs.length}곡`);
+        return response.data.songs;
+      }
+
+      console.warn('⚠️ AI 음악 발견 응답 형식 오류:', response);
+      return [];
+      
+    } catch (error) {
+      console.error('❌ AI 음악 발견 실패:', error);
+      return [];
+    }
+  }
+
 
   // Health Check
   async healthCheck(): Promise<string> {

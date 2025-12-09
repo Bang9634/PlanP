@@ -68,30 +68,49 @@ export function MusicDiscoveryActivity({ onBack, onComplete }: MusicDiscoveryAct
     setIsGenerating(true);
     
     try {
-      // 모든 키워드 조합
-      const allKeywords = Object.values(finalAnswers)
-        .map((answer: any) => answer.keywords)
-        .join(' ');
+      console.log('🤖 AI 컨텍스트 기반 추천 시작:', finalAnswers);
       
-      console.log('🤖 AI 추천 키워드:', allKeywords);
-      
-      // iTunes API로 검색
-      const tracks = await MusicService.searchTracks(allKeywords, 10);
-      
-      // 결과가 없으면 개별 키워드로 재시도
-      if (tracks.length === 0) {
-        const backupTracks = await MusicService.searchTracks(
-          finalAnswers.preference.keywords, 
-          10
-        );
-        setRecommendations(backupTracks);
-      } else {
-        setRecommendations(tracks);
+      // ✅ 백엔드 AI 추천 API 호출
+      const aiSongs = await apiService.discoverMusic(
+        finalAnswers.energy.keywords,
+        finalAnswers.activity.keywords,
+        finalAnswers.preference.keywords,
+        10
+      );
+      if (aiSongs.length === 0) {
+        console.warn('⚠️ AI 추천 결과 없음, 인기 차트로 대체');
+        const fallbackTracks = await MusicService.getTopTracks(10);
+        setRecommendations(fallbackTracks);
+        return;
       }
       
+      console.log(`✅ Gemini AI 추천: ${aiSongs.length}곡`);
+
+      // ✅ AI 추천 곡들을 iTunes에서 검색
+      const searchPromises = aiSongs.map(songTitle =>
+        MusicService.searchTracks(songTitle, 1)
+      );
+      
+      const results = await Promise.allSettled(searchPromises);
+
+      const tracks: Track[] = results
+        .filter((result): result is PromiseFulfilledResult<Track[]> =>
+          result.status === 'fulfilled' && result.value.length > 0
+        )
+        .map(result => result.value[0]);
+
+      console.log(`🎵 iTunes 검색 완료: ${tracks.length}/${aiSongs.length} 곡 찾음`);
+
+      if (tracks.length < 5) {
+        console.log('⚠️ iTunes 검색 결과 부족, 인기 차트로 보충');
+        const additionalTracks = await MusicService.getTopTracks(10 - tracks.length);
+        tracks.push(...additionalTracks);
+      }
+
+      setRecommendations(tracks);
+      
     } catch (error) {
-      console.error('추천 생성 실패:', error);
-      // 실패 시 K-POP 인기곡으로 대체
+      console.error('❌ 추천 생성 실패:', error);
       const fallbackTracks = await MusicService.getTopTracks(10);
       setRecommendations(fallbackTracks);
     } finally {
@@ -157,14 +176,15 @@ export function MusicDiscoveryActivity({ onBack, onComplete }: MusicDiscoveryAct
           <CardContent className="py-16">
             <div className="text-center space-y-4">
               <div className="animate-spin w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full mx-auto"></div>
-              <h3>🤖 AI가 당신만을 위한 음악을 찾고 있어요</h3>
+              <h3>🤖 Gemini AI가 당신만을 위한 음악을 찾고 있어요</h3>
               <p className="text-muted-foreground">
-                iTunes에서 수백만 곡 중 당신의 취향에 맞는 곡들을 검색하고 있습니다...
+                당신의 에너지, 상황, 취향을 분석하여 완벽한 플레이리스트를 만들고 있습니다...
               </p>
               <div className="space-y-2 text-sm text-muted-foreground">
-                <p>🎯 선호도 분석 중...</p>
-                <p>🎶 iTunes 데이터베이스 검색 중...</p>
-                <p>✨ 맞춤 추천 생성 중...</p>
+                <p>🎯 컨텍스트 분석 중...</p>
+                <p>🤖 Gemini AI 추천 생성 중...</p>
+                <p>🎶 iTunes 곡 정보 수집 중...</p>
+                <p>✨ 맞춤 플레이리스트 완성 중...</p>
               </div>
             </div>
           </CardContent>
@@ -172,6 +192,7 @@ export function MusicDiscoveryActivity({ onBack, onComplete }: MusicDiscoveryAct
       </div>
     );
   }
+
 
   if (recommendations.length > 0) {
     return (
@@ -183,7 +204,7 @@ export function MusicDiscoveryActivity({ onBack, onComplete }: MusicDiscoveryAct
           </Button>
           <h2 className="mb-2">🎵 AI 맞춤 음악 추천</h2>
           <p className="text-muted-foreground">
-            당신의 취향을 분석해서 찾은 특별한 음악들이에요! 🤖✨
+            Gemini AI가 당신의 에너지, 상황, 취향을 분석해서 찾은 특별한 음악들이에요! 🤖✨
           </p>
         </div>
 
@@ -192,7 +213,6 @@ export function MusicDiscoveryActivity({ onBack, onComplete }: MusicDiscoveryAct
             <Card key={song.id} className="hover:shadow-md transition-shadow">
               <CardContent className="p-6">
                 <div className="flex items-start gap-4">
-                  {/* 앨범 커버 */}
                   <div className="flex-shrink-0">
                     <img 
                       src={song.albumCover} 
@@ -257,6 +277,7 @@ export function MusicDiscoveryActivity({ onBack, onComplete }: MusicDiscoveryAct
           ))}
         </div>
 
+
         <div className="text-center space-y-4">
           <Button onClick={onComplete} size="lg" className="gap-2">
             ✅ 활동 완료하기!
@@ -284,7 +305,6 @@ export function MusicDiscoveryActivity({ onBack, onComplete }: MusicDiscoveryAct
     );
   }
 
-  // 질문 단계
   return (
     <div className="max-w-2xl mx-auto">
       <div className="mb-8">
@@ -294,7 +314,7 @@ export function MusicDiscoveryActivity({ onBack, onComplete }: MusicDiscoveryAct
         </Button>
         <h2 className="mb-2">🎵 AI 음악 발견 여행</h2>
         <p className="text-muted-foreground">
-          AI가 당신의 취향을 분석해서 iTunes에서 새로운 음악을 추천해드려요
+          Gemini AI가 당신의 에너지, 상황, 취향을 분석해서 완벽한 음악을 추천해드려요
         </p>
       </div>
 
@@ -317,7 +337,7 @@ export function MusicDiscoveryActivity({ onBack, onComplete }: MusicDiscoveryAct
             🤖 {moodQuestions[currentStep].question}
           </CardTitle>
           <CardDescription className="text-center">
-            AI가 더 정확한 추천을 위해 당신을 분석하고 있어요
+            Gemini AI가 더 정확한 추천을 위해 당신을 분석하고 있어요
           </CardDescription>
         </CardHeader>
         <CardContent>
