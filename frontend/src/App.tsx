@@ -113,7 +113,7 @@ export default function App() {
   const [activityHistory, setActivityHistory] = useState<any[]>([]);
 
   const handleRandomCategory = () => {
-    const categories = ['music', 'daily', 'travel', 'study', 'hobby', 'social', 'culture', 'exercise'];
+    const categories = ['music', 'travel', 'study', 'hobby', 'culture', 'exercise'];
     const randomCategory = categories[Math.floor(Math.random() * categories.length)];
     setSelectedCategory(randomCategory);
     setSelectedSubCategory(null);
@@ -439,14 +439,6 @@ export default function App() {
               />
             )}
 
-            {/* 일상 카테고리 활동들 */}
-            {selectedCategory === 'daily' && selectedSubCategory === 'cooking' && (
-              <CookingActivity 
-                onBack={handleBackToCategory}
-                onComplete={handleActivityComplete}
-              />
-            )}
-
             {/* 여행 카테고리 활동들 */}
             {selectedCategory === 'travel' && selectedSubCategory === 'domestic-travel' && (
               <DomesticTravelActivity 
@@ -495,13 +487,11 @@ export default function App() {
 
             {/* 아직 구현되지 않은 활동들 */}
             {((selectedCategory === 'music' && !['artist-new-songs', 'genre-exploration', 'music-discovery'].includes(selectedSubCategory)) ||
-              (selectedCategory === 'daily' && !['cooking'].includes(selectedSubCategory)) ||
               (selectedCategory === 'travel' && !['domestic-travel', 'international-travel'].includes(selectedSubCategory)) ||
               (selectedCategory === 'study' && !['language-learning'].includes(selectedSubCategory)) ||
               (selectedCategory === 'hobby' && !['photography'].includes(selectedSubCategory)) ||
               (selectedCategory === 'culture' && !['movie-drama'].includes(selectedSubCategory)) ||
-              (selectedCategory === 'exercise' && !['home-workout'].includes(selectedSubCategory)) ||
-              (selectedCategory === 'social')) && (
+              (selectedCategory === 'exercise' && !['home-workout'].includes(selectedSubCategory))) && (
               <div className="text-center py-16">
                 <h3 className="mb-4">이 활동은 곧 출시될 예정입니다!</h3>
                 <p className="text-muted-foreground mb-8">

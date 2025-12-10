@@ -26,6 +26,8 @@ public class UserHandler extends BaseHandler {
         get("/me", this::handleGetUserInfoByToken);
         delete("/me", this::handleDeleteAccount);
 
+        put("/update-password", this::handleUpdatePassword);
+
         // 이메일 인증 관련 라우트
         post("/send-email-code", this::handleSendEmailCode);
         post("/verify-email-code", this::handleVerifyEmailCode);
@@ -184,48 +186,98 @@ public class UserHandler extends BaseHandler {
     }
 
 
-/**
- * 회원 탈퇴 요청을 처리하는 메서드
- * DELETE /api/users/me
- * Authorization 헤더의 JWT로 본인 확인
- * body: { "password": "user_password" } (일반 계정만)
- */
-private void handleDeleteAccount(HttpExchange exchange) throws IOException {
-    logger.debug("회원 탈퇴 요청");
-    try {
-        // 1. JWT 토큰 검증
-        String authHeader = exchange.getRequestHeaders().getFirst("Authorization");
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            sendErrorResponse(exchange, 401, "Authorization 헤더가 필요합니다");
-            return;
-        }
-        String accessToken = authHeader.substring("Bearer ".length());
-        
-        // 2. 요청 본문에서 비밀번호 추출 (일반 계정만 필요)
-        String requestBody = readRequestBody(exchange);
-        String password = null;
-        
-        if (requestBody != null && !requestBody.trim().isEmpty()) {
-            com.google.gson.JsonObject json = gson.fromJson(requestBody, com.google.gson.JsonObject.class);
-            if (json != null && json.has("password")) {
-                password = json.get("password").getAsString();
+    /**
+     * 회원 탈퇴 요청을 처리하는 메서드
+     * DELETE /api/users/me
+     * Authorization 헤더의 JWT로 본인 확인
+     * body: { "password": "user_password" } (일반 계정만)
+     */
+    private void handleDeleteAccount(HttpExchange exchange) throws IOException {
+        logger.debug("회원 탈퇴 요청");
+        try {
+            // 1. JWT 토큰 검증
+            String authHeader = exchange.getRequestHeaders().getFirst("Authorization");
+            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                sendErrorResponse(exchange, 401, "Authorization 헤더가 필요합니다");
+                return;
             }
+            String accessToken = authHeader.substring("Bearer ".length());
+            
+            // 2. 요청 본문에서 비밀번호 추출 (일반 계정만 필요)
+            String requestBody = readRequestBody(exchange);
+            String password = null;
+            
+            if (requestBody != null && !requestBody.trim().isEmpty()) {
+                com.google.gson.JsonObject json = gson.fromJson(requestBody, com.google.gson.JsonObject.class);
+                if (json != null && json.has("password")) {
+                    password = json.get("password").getAsString();
+                }
+            }
+            
+            // 3. 컨트롤러로 위임
+            ApiResponse<?> response = userController.deleteAccount(accessToken, password);
+            
+            if (response.isSuccess()) {
+                sendSuccessResponse(exchange, response);
+            } else {
+                sendErrorResponse(exchange, 400, response.getMessage());
+            }
+            
+        } catch (Exception e) {
+            logger.error("회원 탈퇴 처리 중 오류", e);
+            sendErrorResponse(exchange, 500, "회원 탈퇴 처리 중 오류가 발생했습니다");
         }
-        
-        // 3. 컨트롤러로 위임
-        ApiResponse<?> response = userController.deleteAccount(accessToken, password);
-        
-        if (response.isSuccess()) {
-            sendSuccessResponse(exchange, response);
-        } else {
-            sendErrorResponse(exchange, 400, response.getMessage());
-        }
-        
-    } catch (Exception e) {
-        logger.error("회원 탈퇴 처리 중 오류", e);
-        sendErrorResponse(exchange, 500, "회원 탈퇴 처리 중 오류가 발생했습니다");
     }
-}
+
+    /**
+     * 비밀번호 변경 요청을 처리하는 메서드
+     * PUT /api/users/update-password
+     * Authorization 헤더의 JWT로 본인 확인
+     * body: { "currentPassword": "old_password", "newPassword": "new_password" }
+     */
+    private void handleUpdatePassword(HttpExchange exchange) throws IOException {
+        logger.debug("비밀번호 변경 요청");
+        try {
+            // 1. JWT 토큰 검증
+            String authHeader = exchange.getRequestHeaders().getFirst("Authorization");
+            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                sendErrorResponse(exchange, 401, "Authorization 헤더가 필요합니다");
+                return;
+            }
+            String accessToken = authHeader.substring("Bearer ".length());
+            
+            // 2. 요청 본문에서 비밀번호 추출
+            String requestBody = readRequestBody(exchange);
+            
+            if (requestBody == null || requestBody.trim().isEmpty()) {
+                sendErrorResponse(exchange, 400, "요청 본문이 필요합니다");
+                return;
+            }
+            
+            com.google.gson.JsonObject json = gson.fromJson(requestBody, com.google.gson.JsonObject.class);
+            
+            if (json == null || !json.has("currentPassword") || !json.has("newPassword")) {
+                sendErrorResponse(exchange, 400, "현재 비밀번호와 새 비밀번호가 필요합니다");
+                return;
+            }
+            
+            String currentPassword = json.get("currentPassword").getAsString();
+            String newPassword = json.get("newPassword").getAsString();
+            
+            // 3. 컨트롤러로 위임
+            ApiResponse<?> response = userController.updatePassword(accessToken, currentPassword, newPassword);
+            
+            if (response.isSuccess()) {
+                sendSuccessResponse(exchange, response);
+            } else {
+                sendErrorResponse(exchange, 400, response.getMessage());
+            }
+            
+        } catch (Exception e) {
+            logger.error("비밀번호 변경 처리 중 오류", e);
+            sendErrorResponse(exchange, 500, "비밀번호 변경 처리 중 오류가 발생했습니다");
+        }
+    }
     
     /**
      * URL 쿼리 파라미터를 추출하는 도우미 메서드

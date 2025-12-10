@@ -20,24 +20,14 @@ const subCategories: Record<string, SubCategoryItem[]> = {
     { id: 'genre-exploration', name: '새로운 장르 탐색', description: '평소 안 듣던 장르 도전해보기', emoji: '🎧' },
     { id: 'music-discovery', name: '음악 발견 여행', description: 'AI 추천으로 새로운 음악 찾기', emoji: '🔍' }
   ],
-  daily: [
-    { id: 'cooking', name: '새로운 요리', description: '간단한 새 레시피 도전해보기', emoji: '👨‍🍳' },
-    { id: 'organization', name: '정리정돈', description: '공간을 깔끔하게 정리하기', emoji: '📦' },
-    { id: 'self-care', name: '셀프케어', description: '나를 위한 시간 갖기', emoji: '💆' },
-    { id: 'reading', name: '독서', description: '새로운 책이나 아티클 읽기', emoji: '📖' },
-    { id: 'journaling', name: '일기쓰기', description: '하루를 돌아보고 기록하기', emoji: '✏️' }
-  ],
   travel: [
     { id: 'domestic-travel', name: '국내여행', description: '우리나라 명소와 숨은 보석 찾기', emoji: '🇰🇷' },
     { id: 'international-travel', name: '해외여행', description: '세계 각국의 매력적인 여행지', emoji: '🌍' },
     { id: 'day-trip', name: '당일치기 여행', description: '가까운 곳에서 즐기는 짧은 여행', emoji: '🚗' },
-    { id: 'food-tour', name: '맛집 투어', description: '지역별 특색 있는 맛집 탐방', emoji: '🍜' },
-    { id: 'nature-trip', name: '자연 여행', description: '산, 바다, 숲에서 힐링하기', emoji: '🏔️' }
   ],
   study: [
     { id: 'language-learning', name: '언어 학습', description: '새로운 외국어 배우기', emoji: '🗣️' },
     { id: 'tech-skills', name: '새로운 기술 배우기', description: '프로그래밍, 디자인 등 IT 스킬', emoji: '💻' },
-    { id: 'online-courses', name: '온라인 강의', description: '관심 분야 강의 수강하기', emoji: '📚' },
     { id: 'certification', name: '자격증 공부', description: '취업이나 이직에 도움되는 자격증', emoji: '📜' },
     { id: 'book-study', name: '전문서적 읽기', description: '깊이 있는 지식 쌓기', emoji: '📖' }
   ],
@@ -49,13 +39,6 @@ const subCategories: Record<string, SubCategoryItem[]> = {
     { id: 'diy-crafts', name: 'DIY/만들기', description: '손으로 직접 만드는 재미', emoji: '🔨' },
     { id: 'gaming', name: '게임', description: '새로운 게임 도전하기', emoji: '🎮' },
     { id: 'gardening', name: '원예/식물 키우기', description: '초록 친구들과 함께하기', emoji: '🌱' }
-  ],
-  social: [
-    { id: 'meet-friends', name: '친구 만나기', description: '오랜만에 친구와 시간 보내기', emoji: '👫' },
-    { id: 'new-people', name: '새로운 사람들과 만나기', description: '모임이나 동호회 참여하기', emoji: '🤝' },
-    { id: 'online-community', name: '온라인 커뮤니티', description: '관심사가 같은 사람들과 소통', emoji: '💬' },
-    { id: 'volunteer', name: '봉사활동', description: '의미있는 일에 참여하기', emoji: '❤️' },
-    { id: 'networking', name: '네트워킹', description: '새로운 인맥 만들기', emoji: '🌐' }
   ],
   culture: [
     { id: 'movie-drama', name: '영화/드라마', description: '새로운 작품 감상하기', emoji: '🎬' },
@@ -76,11 +59,9 @@ const subCategories: Record<string, SubCategoryItem[]> = {
 const getCategoryTitle = (category: string): string => {
   const titles: Record<string, string> = {
     music: '음악',
-    daily: '일상',
     travel: '여행',
     study: '공부',
     hobby: '취미',
-    social: '사교',
     culture: '문화',
     exercise: '운동'
   };

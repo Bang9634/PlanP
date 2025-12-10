@@ -16,7 +16,7 @@ import {
     Shield
 } from "lucide-react";
 import { AuthService } from "../services/AuthService";
-import { apiService, MyAccountResponse,DeleteAccountResponse } from "../services/api";
+import { apiService, MyAccountResponse,DeleteAccountResponse, UpdatePasswordResponse} from "../services/api";
 
 interface MyAccountPageProps {
     onBackToHome: () => void;
@@ -85,9 +85,68 @@ export function MyAccountPage({ onBackToHome, onLogout }: MyAccountPageProps) {
         loadAccount();
     }, []);
 
-    const handlePasswordChange = () => {
-        // TODO: 비밀번호 변경 모달 열기
-        alert('비밀번호 변경 기능은 준비 중입니다.');
+   const handlePasswordChange = async () => {
+        if (!myAccount || myAccount.isGoogleAccount) {
+            alert('Google 계정은 비밀번호를 변경할 수 없습니다.');
+            return;
+        }
+        
+        try {
+            // 현재 비밀번호 입력
+            const currentPassword = window.prompt('현재 비밀번호를 입력해주세요:');
+            if (currentPassword === null) return; // 취소
+            
+            if (!currentPassword || currentPassword.trim().length === 0) {
+                alert('현재 비밀번호를 입력해주세요.');
+                return;
+            }
+            
+            // 새 비밀번호 입력
+            const newPassword = window.prompt('새 비밀번호를 입력해주세요:');
+            if (newPassword === null) return; // 취소
+            
+            if (!newPassword || newPassword.trim().length === 0) {
+                alert('새 비밀번호를 입력해주세요.');
+                return;
+            }
+            
+            // 새 비밀번호 확인
+            const confirmPassword = window.prompt('새 비밀번호를 다시 입력해주세요:');
+            if (confirmPassword === null) return; // 취소
+            
+            if (newPassword !== confirmPassword) {
+                alert('❌ 새 비밀번호가 일치하지 않습니다.');
+                return;
+            }
+            
+            // API 호출
+            const updatePasswordResponse: UpdatePasswordResponse = await apiService.updatePassword(currentPassword, newPassword);
+            if (updatePasswordResponse.success) {
+                alert('비밀번호가 성공적으로 변경되었습니다.');
+                onLogout();
+            } else {
+                alert(updatePasswordResponse.message);
+            }
+            
+        } catch (error) {
+            console.error('비밀번호 변경 실패:', error);
+            
+            if (error instanceof Error) {
+                if (error.message.includes('현재 비밀번호')) {
+                    alert('❌ 현재 비밀번호가 일치하지 않습니다.');
+                } else if (error.message.includes('강도')) {
+                    alert('❌ ' + error.message);
+                } else if (error.message.includes('인증')) {
+                    alert('❌ 인증에 실패했습니다. 다시 로그인해주세요.');
+                    AuthService.logout();
+                    onLogout();
+                } else {
+                    alert('❌ 비밀번호 변경에 실패했습니다.\n' + error.message);
+                }
+            } else {
+                alert('❌ 비밀번호 변경 중 오류가 발생했습니다.');
+            }
+        }
     };
 
     const handleAccountDelete = async () => {

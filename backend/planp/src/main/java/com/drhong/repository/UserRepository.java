@@ -324,6 +324,51 @@ public class UserRepository {
         }
     }
 
+    /**
+     * 사용자 비밀번호를 업데이트하는 메서드
+     * <p>
+     * 주어진 사용자 ID의 비밀번호를 새로운 해시값으로 업데이트한다.
+     * 비밀번호 변경 기능에서 사용된다.
+     * </p>
+     * 
+     * @param userId 비밀번호를 변경할 사용자 ID
+     * @param newPasswordHash 새로운 bcrypt 해시 비밀번호
+     * @return 업데이트 성공 시 true, 실패 시 false
+     * 
+     * @throws IllegalArgumentException userId 또는 newPasswordHash가 null이거나 빈 문자열인 경우
+     */
+    public boolean updatePassword(String userId, String newPasswordHash) {
+        if (userId == null || userId.trim().isEmpty()) {
+            logger.error("잘못된 사용자 ID로 비밀번호 변경 시도: userId={}", userId);
+            throw new IllegalArgumentException("사용자 ID는 null이거나 빈 문자열일 수 없습니다");
+        }
+        
+        if (newPasswordHash == null || newPasswordHash.trim().isEmpty()) {
+            logger.error("잘못된 비밀번호 해시로 변경 시도: userId={}", userId);
+            throw new IllegalArgumentException("비밀번호 해시는 null이거나 빈 문자열일 수 없습니다");
+        }
+        
+        logger.info("사용자 비밀번호 변경 시도: userId={}", userId);
+        
+        String sql = "UPDATE users SET password_hash = ? WHERE user_id = ?";
+        
+        try {
+            int updatedRows = queryExecutor.executeUpdate(sql, newPasswordHash, userId);
+            
+            if (updatedRows > 0) {
+                logger.info("비밀번호 변경 성공: userId={}", userId);
+                return true;
+            } else {
+                logger.warn("비밀번호 변경 실패 - 사용자를 찾을 수 없음: userId={}", userId);
+                return false;
+            }
+            
+        } catch (SQLException e) {
+            logger.error("비밀번호 변경 실패: userId={}", userId, e);
+            return false;
+        }
+    }
+
     private User mapToUser(ResultSet rs) {
         User user = new User();
         try {

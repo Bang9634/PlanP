@@ -131,6 +131,17 @@ export interface DeleteAccountResponse {
   };
 }
 
+// 비밀번호 변경 응답
+export interface UpdatePasswordResponse {
+  success: boolean;
+  message: string;
+  timestamp?: number;
+  data?: { // data 객체 추가
+    userId: string;
+    updatedAt: string;
+  };
+}
+
 export interface GoogleLoginRequest {
     accessToken: string; // Google OAuth Access Token
 }
@@ -496,6 +507,22 @@ export class ApiService {
             body: JSON.stringify(body),
         }, true); // requiresAuth = true
     }
+
+  /**
+   * 비밀번호 변경 API
+   * @param currentPassword 현재 비밀번호
+   * @param newPassword 새 비밀번호
+   * @returns 변경 결과
+   */
+  async updatePassword(currentPassword: string, newPassword: string): Promise<UpdatePasswordResponse> {
+      return this.request<UpdatePasswordResponse>("/users/update-password", {
+          method: "PUT",
+          body: JSON.stringify({
+              currentPassword,
+              newPassword
+          }),
+      }, true); // requiresAuth = true
+  }
 
     /**
    * AI 기반 장르별 음악 추천 (Gemini)

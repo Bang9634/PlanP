@@ -575,46 +575,145 @@ public class UserService {
     }
 
     /**
- * 회원 탈퇴 처리 메서드
- * <p>
- * 사용자 계정을 비활성화한다 (소프트 삭제).
- * 실제 데이터는 삭제하지 않고 is_active 플래그만 변경한다.
- * </p>
- * 
- * @param userId 탈퇴할 사용자 ID
- * @return 성공 시 true, 실패 시 false
- */
-public boolean deleteAccount(String userId) {
-    if (userId == null || userId.trim().isEmpty()) {
-        logger.warn("잘못된 userId로 탈퇴 시도: userId={}", userId);
-        throw new IllegalArgumentException("사용자 ID는 필수입니다");
-    }
-    
-    logger.info("회원 탈퇴 처리 시작: userId={}", userId);
-    
-    try {
-        // 사용자 존재 확인
-        Optional<User> userOpt = userRepository.findByUserId(userId);
-        
-        if (userOpt.isEmpty()) {
-            logger.warn("존재하지 않는 사용자 탈퇴 시도: userId={}", userId);
-            throw new RuntimeException("사용자를 찾을 수 없습니다");
+     * 회원 탈퇴 처리 메서드
+     * <p>
+     * 사용자 계정을 비활성화한다 (소프트 삭제).
+     * 실제 데이터는 삭제하지 않고 is_active 플래그만 변경한다.
+     * </p>
+     * 
+     * @param userId 탈퇴할 사용자 ID
+     * @return 성공 시 true, 실패 시 false
+     */
+    public boolean deleteAccount(String userId) {
+        if (userId == null || userId.trim().isEmpty()) {
+            logger.warn("잘못된 userId로 탈퇴 시도: userId={}", userId);
+            throw new IllegalArgumentException("사용자 ID는 필수입니다");
         }
         
-       
-        boolean deactivated = userRepository.deleteByUserId(userId);
+        logger.info("회원 탈퇴 처리 시작: userId={}", userId);
         
-        if (deactivated) {
-            logger.info("회원 탈퇴 완료: userId={}", userId);
-            return true;
-        } else {
-            logger.warn("회원 탈퇴 실패: userId={}", userId);
-            return false;
+        try {
+            // 사용자 존재 확인
+            Optional<User> userOpt = userRepository.findByUserId(userId);
+            
+            if (userOpt.isEmpty()) {
+                logger.warn("존재하지 않는 사용자 탈퇴 시도: userId={}", userId);
+                throw new RuntimeException("사용자를 찾을 수 없습니다");
+            }
+            
+        
+            boolean deactivated = userRepository.deleteByUserId(userId);
+            
+            if (deactivated) {
+                logger.info("회원 탈퇴 완료: userId={}", userId);
+                return true;
+            } else {
+                logger.warn("회원 탈퇴 실패: userId={}", userId);
+                return false;
+            }
+            
+        } catch (Exception e) {
+            logger.error("회원 탈퇴 처리 중 오류: userId={}", userId, e);
+            throw new RuntimeException("회원 탈퇴 처리 중 오류가 발생했습니다");
+        }
+    }
+
+    /**
+     * 사용자 비밀번호를 변경하는 메서드
+     * <p>
+     * 현재 비밀번호를 확인한 후 새로운 비밀번호로 변경한다.
+     * Google 계정은 비밀번호 변경이 불가능하다.
+     * </p>
+     * 
+     * @param userId 비밀번호를 변경할 사용자 ID
+     * @param currentPassword 현재 비밀번호 (확인용)
+     * @param newPassword 새로운 비밀번호
+     * @return 변경 성공 시 true, 실패 시 false
+     * 
+     * @throws IllegalArgumentException 파라미터가 null이거나 빈 문자열인 경우
+     * @throws RuntimeException 사용자가 존재하지 않거나 Google 계정인 경우
+     */
+    public boolean updatePassword(String userId, String currentPassword, String newPassword) {
+        // 1. 입력 검증
+        if (userId == null || userId.trim().isEmpty()) {
+            logger.warn("잘못된 userId로 비밀번호 변경 시도: userId={}", userId);
+            throw new IllegalArgumentException("사용자 ID는 필수입니다");
         }
         
-    } catch (Exception e) {
-        logger.error("회원 탈퇴 처리 중 오류: userId={}", userId, e);
-        throw new RuntimeException("회원 탈퇴 처리 중 오류가 발생했습니다");
+        if (currentPassword == null || currentPassword.trim().isEmpty()) {
+            logger.warn("현재 비밀번호 미입력: userId={}", userId);
+            throw new IllegalArgumentException("현재 비밀번호는 필수입니다");
+        }
+        
+        if (newPassword == null || newPassword.trim().isEmpty()) {
+            logger.warn("새 비밀번호 미입력: userId={}", userId);
+            throw new IllegalArgumentException("새 비밀번호는 필수입니다");
+        }
+        
+        logger.info("비밀번호 변경 처리 시작: userId={}", userId);
+        
+        try {
+            // 2. 사용자 존재 확인
+            Optional<User> userOpt = userRepository.findByUserId(userId);
+            
+            if (userOpt.isEmpty()) {
+                logger.warn("존재하지 않는 사용자 비밀번호 변경 시도: userId={}", userId);
+                throw new RuntimeException("사용자를 찾을 수 없습니다");
+            }
+            
+            User user = userOpt.get();
+            
+            // 3. Google 계정 확인
+            if (user.isGoogleAccount()) {
+                logger.warn("Google 계정 비밀번호 변경 시도: userId={}", userId);
+                throw new RuntimeException("Google 계정은 비밀번호를 변경할 수 없습니다");
+            }
+            
+            // 4. 현재 비밀번호 확인
+            boolean isCurrentPasswordValid = PasswordUtil.verify(currentPassword, user.getPassword());
+            
+            if (!isCurrentPasswordValid) {
+                logger.warn("현재 비밀번호 불일치: userId={}", userId);
+                throw new RuntimeException("현재 비밀번호가 일치하지 않습니다");
+            }
+            
+            // 5. 새 비밀번호 강도 검증
+            int passwordStrength = PasswordUtil.getPasswordStrength(newPassword);
+            if (passwordStrength < MIN_PASSWORD_STRENGTH) {
+                String strengthText = PasswordUtil.getPasswordStrengthText(newPassword);
+                logger.warn("새 비밀번호 강도 부족: userId={}, strength={}/{}", 
+                    userId, passwordStrength, MIN_PASSWORD_STRENGTH);
+                throw new RuntimeException(
+                    String.format("비밀번호 강도가 너무 약합니다. (현재: %s, 권장: 보통 이상)", strengthText)
+                );
+            }
+            
+            // 6. 새 비밀번호와 현재 비밀번호가 같은지 확인
+            if (currentPassword.equals(newPassword)) {
+                logger.warn("새 비밀번호가 현재 비밀번호와 동일: userId={}", userId);
+                throw new RuntimeException("새 비밀번호는 현재 비밀번호와 달라야 합니다");
+            }
+            
+            // 7. 새 비밀번호 암호화
+            String newPasswordHash = PasswordUtil.hash(newPassword);
+            
+            // 8. 데이터베이스 업데이트
+            boolean updated = userRepository.updatePassword(userId, newPasswordHash);
+            
+            if (updated) {
+                logger.info("비밀번호 변경 성공: userId={}", userId);
+                return true;
+            } else {
+                logger.warn("비밀번호 변경 실패: userId={}", userId);
+                return false;
+            }
+            
+        } catch (RuntimeException e) {
+            // 비즈니스 로직 예외는 그대로 전파
+            throw e;
+        } catch (Exception e) {
+            logger.error("비밀번호 변경 중 오류: userId={}", userId, e);
+            throw new RuntimeException("비밀번호 변경 처리 중 오류가 발생했습니다");
+        }
     }
-}
 }
