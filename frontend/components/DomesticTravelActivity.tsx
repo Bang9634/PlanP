@@ -3,6 +3,8 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { ArrowLeft, MapPin, Clock, Star, Camera } from 'lucide-react';
+import { AuthService } from '../services/AuthService';
+import { apiService } from '../services/api';
 
 interface DomesticTravelActivityProps {
   onBack: () => void;
@@ -55,78 +57,34 @@ const travelQuestions = [
   }
 ];
 
-const destinations: Record<string, TravelDestination[]> = {
-  'healing-day-seoul': [
-    {
-      name: '북한산 둘레길',
-      location: '서울 성북구',
-      description: '도심 속에서 즐기는 자연 산책로, 스트레스 해소에 완벽',
-      tags: ['자연', '걷기', '힐링'],
-      duration: '3-4시간',
-      difficulty: 'easy',
-      highlights: ['북한산 자연 경관', '다양한 둘레길 코스', '도심 접근성'],
-      season: '사계절',
-      transport: '지하철 + 도보'
-    },
-    {
-      name: '서울숲',
-      location: '서울 성동구',
-      description: '도심 속 대형 공원에서 피크닉과 산책을 즐겨보세요',
-      tags: ['공원', '피크닉', '가족'],
-      duration: '2-3시간',
-      difficulty: 'easy',
-      highlights: ['넓은 잔디밭', '곤충식물원', '한강 전망'],
-      season: '봄, 가을 추천',
-      transport: '지하철 + 도보'
-    }
-  ],
-  'adventure-weekend-gangwon': [
-    {
-      name: '평창 알펜시아',
-      location: '강원도 평창군',
-      description: '사계절 리조트에서 다양한 액티비티를 즐겨보세요',
-      tags: ['리조트', '액티비티', '겨울스포츠'],
-      duration: '1박 2일',
-      difficulty: 'medium',
-      highlights: ['스키/스노보드', '슬라이딩센터', '자연 경관'],
-      season: '겨울 추천',
-      transport: 'KTX + 셔틀버스'
-    }
-  ],
-  'culture-long-gyeongsang': [
-    {
-      name: '경주 역사문화지구',
-      location: '경상북도 경주시',
-      description: '천년 고도 경주에서 신라 문화를 체험해보세요',
-      tags: ['역사', '문화재', '교육'],
-      duration: '2박 3일',
-      difficulty: 'easy',
-      highlights: ['불국사', '석굴암', '첨성대', '안압지'],
-      season: '사계절',
-      transport: 'KTX + 버스'
-    }
-  ],
-  'nature-day-chungcheong': [
-    {
-      name: '태안 안면도',
-      location: '충청남도 태안군',
-      description: '서해안의 아름다운 해변과 자연을 만끽하세요',
-      tags: ['바다', '해변', '일몰'],
-      duration: '당일치기',
-      difficulty: 'easy',
-      highlights: ['꽃지해수욕장', '할미할아버지바위', '일몰 명소'],
-      season: '여름, 가을 추천',
-      transport: '자차 또는 버스'
-    }
-  ]
-};
-
 export function DomesticTravelActivity({ onBack, onComplete }: DomesticTravelActivityProps) {
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [recommendations, setRecommendations] = useState<TravelDestination[]>([]);
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  useEffect(() => {
+    const checkAuth = () => {
+      const authenticated = AuthService.isAuthenticated();
+      setIsAuthenticated(authenticated);
+      setIsAuthChecking(false);
+      
+      if (!authenticated) {
+        console.warn('⚠️ 로그인이 필요한 기능입니다');
+      }
+    };
+
+    checkAuth();
+  }, []);
+
 
   const handleAnswer = (value: string) => {
+    if (!isAuthenticated) {
+      alert('🔒 로그인이 필요한 기능입니다');
+      return;
+    }
     const newAnswers = { ...answers, [travelQuestions[currentStep].id]: value };
     setAnswers(newAnswers);
 
